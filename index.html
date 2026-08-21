@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>67 The Revenger</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="game-wrap">
+
+    <!-- TITLE -->
+    <header class="title-bar">
+      <h1>67 THE REVENGER</h1>
+      <span class="title-sub">// Boss Battle</span>
+    </header>
+
+    <!-- MAIN STAGE: camera + battle scene -->
+    <div class="stage-row">
+
+      <!-- CAMERA -->
+      <div class="panel camera-panel">
+        <div class="panel-label camera-label-row">
+          <span>Camera</span>
+          <span class="status-dot status-off" id="statusDot" title="Camera off"></span>
+        </div>
+        <div class="camera-box" id="cameraBox">
+          <div class="camera-feed" id="cameraFeed"></div>
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <span>CAMERA OFF</span>
+            <small>Press Start to begin</small>
+          </div>
+        </div>
+        <div class="camera-controls">
+          <button id="startBtn" class="btn btn-start">▶ Start</button>
+          <button id="restartBtn" class="btn btn-restart">⟲ Restart</button>
+        </div>
+      </div>
+
+      <!-- BATTLE SCENE -->
+      <div class="panel battle-panel">
+        <div class="battle-scene" id="battleScene">
+
+          <!-- Background -->
+          <div class="battle-bg"></div>
+
+          <!-- HP bars -->
+          <div class="hp-bar hp-player">
+            <span class="hp-icon">❤</span>
+            <div class="hp-track">
+              <div class="hp-fill" id="playerHpFill" style="width:100%"></div>
+            </div>
+            <span class="hp-text" id="playerHpText">100/100</span>
+          </div>
+
+          <div class="hp-bar hp-boss">
+            <span class="hp-text" id="bossHpText">150/150</span>
+            <div class="hp-track">
+              <div class="hp-fill" id="bossHpFill" style="width:100%"></div>
+            </div>
+            <span class="hp-icon">❤</span>
+          </div>
+
+          <!-- Boss ult gauge -->
+          <div class="boss-ult-bar">
+            <span class="boss-ult-label">ULT</span>
+            <div class="boss-ult-track">
+              <div class="boss-ult-fill" id="bossUltFill" style="width:0%"></div>
+            </div>
+          </div>
+
+          <!-- Sprites -->
+          <div class="scene-art" id="sceneArt">
+            <div class="sprite-wrapper sprite-player" id="playerSprite">
+              <img class="sprite-img" id="playerSpriteImg" src="Asset/67MAN/67man_Stand.png" alt="67man">
+            </div>
+            <div class="sprite-wrapper sprite-boss" id="bossSprite">
+              <img class="sprite-img" id="bossSpriteImg" src="Asset/PROFESSOR/Professor_Stand.png" alt="Professor">
+            </div>
+          </div>
+
+          <!-- Turn / countdown banner -->
+          <div class="turn-banner" id="turnBanner">Boss's turn</div>
+
+          <!-- Bottom HUD: skill icons + ult gauge -->
+          <div class="battle-hud">
+            <div class="skill-icons">
+              <div class="skill-icon" id="iconSquat" title="Squat — Normal Attack">👊</div>
+              <div class="skill-icon" id="iconSage" title="Sage — Heal">🌳</div>
+              <div class="skill-icon" id="iconJump" title="Jump — Ultimate">✨</div>
+            </div>
+            <div class="ult-gauge">
+              <div class="ult-track">
+                <div class="ult-fill" id="playerUltFill" style="width:0%"></div>
+              </div>
+              <span class="ult-text" id="playerUltText">0 / 67</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- SIDEBAR: how to play / pose confidence / current action — grouped, stacked -->
+      <div class="panel side-panel">
+
+        <div class="side-col">
+          <div class="panel-label">How To Play</div>
+          <ul class="howto-list">
+            <li>Squat to Normal Attack</li>
+            <li>Tree pose to Heal</li>
+            <li>Jumping Jack to ULT (must be 67+ points)</li>
+            <li>T-pose for Ready, to start your action</li>
+          </ul>
+        </div>
+
+        <div class="side-col">
+          <div class="panel-label">Pose Confidence</div>
+          <div class="confidence-list" id="confidenceList">
+            <div class="conf-row">
+              <span class="conf-name">Default</span>
+              <div class="conf-track"><div class="conf-fill" data-class="Default" style="width:0%"></div></div>
+            </div>
+            <div class="conf-row">
+              <span class="conf-name">Ready</span>
+              <div class="conf-track"><div class="conf-fill" data-class="Ready" style="width:0%"></div></div>
+            </div>
+            <div class="conf-row">
+              <span class="conf-name">Squat</span>
+              <div class="conf-track"><div class="conf-fill" data-class="Squat" style="width:0%"></div></div>
+            </div>
+            <div class="conf-row">
+              <span class="conf-name">Sage</span>
+              <div class="conf-track"><div class="conf-fill" data-class="Sage" style="width:0%"></div></div>
+            </div>
+            <div class="conf-row">
+              <span class="conf-name">Jump</span>
+              <div class="conf-track"><div class="conf-fill" data-class="Jump" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="side-col" id="actionPanel">
+          <div class="panel-label">Action</div>
+          <div class="action-empty" id="actionEmpty">Waiting for action…</div>
+          <div class="action-result" id="actionResult" hidden>
+            <div class="action-name-row">
+              <span id="actionName">Squat</span>
+              <span class="action-accuracy" id="actionAccuracy">Accuracy = 0%</span>
+            </div>
+            <div class="action-value" id="actionValue">0 DMG</div>
+            <div class="action-combo" id="actionCombo">x 0 combo</div>
+          </div>
+        </div>
+
+        <div class="side-col battle-log">
+          <div class="battle-log-label">Battle Log</div>
+          <div class="battle-log-list" id="battleLog"></div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+<!-- Teachable Machine Pose dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
