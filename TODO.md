@@ -76,13 +76,26 @@
 - [x] Professor slam-in animation (slap effect)
 - [x] Full-screen overlay with fade transitions
 
-## 🔲 Phase 9 — Win/Lose States & Polish
+## ✅ Phase 9 — Win/Lose States & Polish
 - [x] Victory / Defeat overlay screen with Play Again button
 - [x] Game-over overlay styled with gold (victory) / crimson (defeat) themes
 - [x] HP bar visible at 0 HP (min-width)
 - [x] Sound effects (completed in Phase 7)
-- [ ] Pose sensitivity tuning
-- [ ] Edge-case handling
+- [x] Pose sensitivity tuning (threshold, entry speed, anti-flicker sliders)
+- [x] Edge-case handling:
+  - Camera disconnect mid-game
+  - Simultaneous pose detection (tie-breaking)
+  - Player already in pose when countdown starts
+  - Restart during cutscene
+  - Boss debuff vs ultimate conflict (ult takes priority)
+- [x] Confidence bar glow on active top pose
+- [x] Low-HP danger indicator (pulsing heart + red border)
+- [x] Turn counter badge in battle scene
+- [x] Skill icon hover tooltips with damage/heal values
+- [x] Boss debuff cooldown badge (READY / CD / LOCKED states)
+- [x] Image skill icons (Squat.png, Tree post.png, Jumping Jack.png)
+- [x] CSS-only 8-bit HP bars and ULT gauges (thick borders, gradient fills, pixel-art style)
+- [x] Settings modal with sensitivity sliders + Reset to Defaults
 
 ---
 
@@ -173,5 +186,53 @@
   - `Startgame.mp3` as cutscene BGM
   - Flash effects, slap animation, fade transitions
 
+### Session 5 — August 22, 2026 (Phase 9 + UI Overhaul)
+- **Pose sensitivity tuning**: Added 3 sliders in sidebar (threshold 30-95%, entry speed 2-15 frames, anti-flicker 4-25 frames) with live updates to POSE_CONFIG
+- **Confidence bar glow**: Top-confidence pose gets gold glow effect when above threshold
+- **Edge-case: camera disconnect**: Added `handleCameraDisconnect()` — pauses battle, shows red warning, logs error
+- **Edge-case: simultaneous poses**: Tie-breaking ensures only one action locks per frame
+- **Edge-case: pose during countdown**: Pre-locks action if player is already doing a pose when T-pose triggers countdown
+- **Edge-case: restart during cutscene**: `cutscene.finish()` called before restart logic
+- **Edge-case: debuff vs ultimate conflict**: Boss ult overrides queued debuff (ult is more impactful)
+- **Low-HP danger indicator**: Player HP bar pulses red and glows when HP ≤ 25
+- **Turn counter badge**: "TURN X" badge displayed at top-center of battle scene
+- **CSS polish**: Sensitivity slider styles, confidence bar active state, camera warning overlay, danger keyframes
+
+### UI Overhaul (Session 5 continued)
+- **Image skill icons**: Replaced emoji icons (👊🌳✨) with actual skill artwork (`Squat.png`, `Tree post.png`, `Jumping Jack.png`)
+- **Settings modal**: Moved sensitivity controls from sidebar to ⚙ settings modal in title bar
+- **Reset to Defaults button**: Added in settings modal to restore original sensitivity values
+- **Skill icon tooltips**: Hover tooltips on each skill icon showing damage/heal values and requirements:
+  - Squat: 5 DMG/rep, +5 ULT
+  - Tree Pose: Heal 15-20 HP, Hold 1s
+  - Jumping Jack: 20 DMG/rep, Requires 67+ ULT
+- **Boss debuff cooldown badge**: Visual indicator below Professor sprite showing:
+  - LOCKED (turns 1-3, dark gray)
+  - CD: X (cooldown active, countdown)
+  - READY (available, green pulse glow)
+
+### Session 6 — August 22, 2026 (Code Review + Cleanup)
+- **Code review**: Full review of all 3 files (~1,470 JS, ~1,260 CSS, HTML)
+  - Identified 5 strengths, 14 suggestions, 4 bugs
+- **HP/ULT bars reverted to CSS-only 8-bit style**: Replaced image-based bars (`Asset/UI/hp.png`, `Asset/UI/ult.png`) with CSS-only bars — thick 3px paper borders, gradient fills, `image-rendering: pixelated`
+- **Bug fixes** (4 resolved):
+  - `dangerPulse` animation: Replaced `transform: scale()` on `.hp-track` with `box-shadow` pulsing (no border distortion)
+  - Game-over overlay: Cleared hardcoded "VICTORY!" default text (now set dynamically by `showGameOver()`)
+  - `ult-text` min-width: Increased to 70px with `text-align: right` for consistent alignment
+  - Boss ult bar overlap: Removed `transform: translateY(36px)`, set `top: 50px` to avoid turn counter overlap
+- **Code cleanup**:
+  - Removed unused CSS variable `--navy-deep`
+  - Removed `image-rendering: pixelated` from CSS gradient fills (`.hp-fill`, `.ult-fill`, `.boss-ult-fill`)
+  - Fixed duplicate `font-size` in `.sens-desc` (kept 15px)
+  - Removed redundant `.title-bar { position: relative; }` block
+  - Removed triple blank lines in JS and CSS
+  - Updated stale file header comment in `script.js`
+- **UI tweaks**:
+  - Skill icon inactive opacity: `0.45` → `0.55` (more visible)
+  - 67man moved up: Added `margin-bottom: 20px` to `.sprite-player`
+  - Professor moved up: Added `margin-top: -20px` to `.sprite-boss`
+  - Debuff badge z-index: Raised `.scene-art` to `z-index: 3` so badge renders above ult bar
+  - Turn counter z-index: Bumped to `4` to stay above raised scene-art
+
 ### What's Left
-- Phase 9: Pose tuning, edge-case handling
+- None — all phases complete! 🎉

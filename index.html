@@ -14,6 +14,7 @@
     <header class="title-bar">
       <h1>67 THE REVENGER</h1>
       <span class="title-sub">// Boss Battle</span>
+      <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
     </header>
 
     <!-- MAIN STAGE: camera + battle scene -->
@@ -45,7 +46,7 @@
           <!-- Background -->
           <div class="battle-bg"></div>
 
-          <!-- HP bars -->
+          <!-- Player HP bar -->
           <div class="hp-bar hp-player">
             <span class="hp-icon">❤</span>
             <div class="hp-track">
@@ -54,6 +55,7 @@
             <span class="hp-text" id="playerHpText">100/100</span>
           </div>
 
+          <!-- Boss HP bar -->
           <div class="hp-bar hp-boss">
             <span class="hp-text" id="bossHpText">150/150</span>
             <div class="hp-track">
@@ -77,8 +79,15 @@
             </div>
             <div class="sprite-wrapper sprite-boss" id="bossSprite">
               <img class="sprite-img" id="bossSpriteImg" src="Asset/PROFESSOR/Professor_Stand.png" alt="Professor">
+              <div class="debuff-badge" id="debuffBadge">
+                <span class="debuff-icon">⚡</span>
+                <span class="debuff-text" id="debuffText">READY</span>
+              </div>
             </div>
           </div>
+
+          <!-- Turn counter -->
+          <div class="turn-counter" id="turnCounter">TURN 1</div>
 
           <!-- Turn / countdown banner -->
           <div class="turn-banner" id="turnBanner">Boss's turn</div>
@@ -86,9 +95,18 @@
           <!-- Bottom HUD: skill icons + ult gauge -->
           <div class="battle-hud">
             <div class="skill-icons">
-              <div class="skill-icon" id="iconSquat" title="Squat — Normal Attack">👊</div>
-              <div class="skill-icon" id="iconSage" title="Sage — Heal">🌳</div>
-              <div class="skill-icon" id="iconJump" title="Jump — Ultimate">✨</div>
+              <div class="skill-icon" id="iconSquat" title="Squat — 5 DMG per rep (+5 ULT)">
+                <img src="Asset/UI/Squat.png" alt="Squat">
+                <div class="skill-tooltip">5 DMG/rep<br>+5 ULT</div>
+              </div>
+              <div class="skill-icon" id="iconSage" title="Tree Pose — Heal 15-20 HP (hold 1s)">
+                <img src="Asset/UI/Tree post.png" alt="Tree Pose">
+                <div class="skill-tooltip">Heal 15-20 HP<br>Hold 1s</div>
+              </div>
+              <div class="skill-icon" id="iconJump" title="Jumping Jack — 20 DMG per rep (ULT 67+)">
+                <img src="Asset/UI/Jumping Jack.png" alt="Jumping Jack">
+                <div class="skill-tooltip">20 DMG/rep<br>Requires 67+ ULT</div>
+              </div>
             </div>
             <div class="ult-gauge">
               <div class="ult-track">
@@ -177,9 +195,45 @@
   <!-- Game Over Overlay -->
   <div class="game-over-overlay" id="gameOverOverlay">
     <div class="go-content">
-      <div class="go-title">VICTORY!</div>
-      <div class="go-sub">Professor has been defeated!</div>
+      <div class="go-title"></div>
+      <div class="go-sub"></div>
       <button id="goRestartBtn" class="btn btn-start" onclick="document.getElementById('restartBtn').click()">⟲ Play Again</button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="settings-overlay" id="settingsOverlay">
+    <div class="settings-modal">
+      <div class="settings-header">
+        <span class="settings-title">⚙ SETTINGS</span>
+        <button class="settings-close" id="settingsClose">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="settings-section">
+          <div class="settings-section-title">Pose Sensitivity</div>
+          <div class="sensitivity-controls">
+            <div class="sens-row">
+              <span class="sens-label">Threshold</span>
+              <input type="range" id="sensThreshold" min="30" max="95" value="70" class="sens-slider">
+              <span class="sens-value" id="sensThresholdVal">70%</span>
+            </div>
+            <div class="sens-desc">Minimum confidence to consider a pose active</div>
+            <div class="sens-row">
+              <span class="sens-label">Entry Speed</span>
+              <input type="range" id="sensDebounce" min="2" max="15" value="6" class="sens-slider">
+              <span class="sens-value" id="sensDebounceVal">6</span>
+            </div>
+            <div class="sens-desc">Frames needed to confirm a pose entered</div>
+            <div class="sens-row">
+              <span class="sens-label">Anti-Flicker</span>
+              <input type="range" id="sensExit" min="4" max="25" value="10" class="sens-slider">
+              <span class="sens-value" id="sensExitVal">10</span>
+            </div>
+            <div class="sens-desc">Frames below threshold to confirm pose exited</div>
+          </div>
+          <button class="btn btn-reset-sens" id="resetSensBtn">↺ Reset to Defaults</button>
+        </div>
+      </div>
     </div>
   </div>
 

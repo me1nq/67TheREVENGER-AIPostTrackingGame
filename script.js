@@ -1,8 +1,8 @@
 /* =========================================================
    67 THE REVENGER — Boss Battle
-   PHASE 2+3: webcam + Teachable Machine pose model,
-   plus PoseEventEngine for clean discrete pose events,
-   rep counting, and hold-duration tracking.
+   Webcam + Teachable Machine pose tracking,
+   turn-based RPG with sprite animation, audio,
+   cutscene system, and sensitivity controls.
    ========================================================= */
 
 const MODEL_URL = "https://teachablemachine.withgoogle.com/models/USCwL4puN/";
@@ -447,7 +447,10 @@ function stopCamera() {
 
   startBtn.disabled = false;
 
-  confFills.forEach(el => el.style.width = '0%');
+  confFills.forEach(el => {
+    el.style.width = '0%';
+    el.classList.remove('active');
+  });
 }
 
 function setPlaceholderText(main, sub) {
@@ -471,9 +474,38 @@ function errorMessage(err) {
    ========================================================= */
 
 async function loop() {
-  webcam.update(); // pulls the latest frame into webcam.canvas
-  await predict();
+  try {
+    webcam.update(); // pulls the latest frame into webcam.canvas
+    await predict();
+  } catch (err) {
+    console.error('Prediction loop error:', err);
+    // Edge case: camera disconnected mid-game
+    if (!webcam || !webcam.canvas) {
+      handleCameraDisconnect();
+      return;
+    }
+  }
   rafId = window.requestAnimationFrame(loop);
+}
+
+/** Handle camera disconnect during gameplay */
+function handleCameraDisconnect() {
+  stopCamera();
+  gamePhase = 'IDLE';
+
+  // Show warning in camera box
+  const warning = document.createElement('div');
+  warning.className = 'camera-warning';
+  warning.textContent = 'CAMERA DISCONNECTED';
+  cameraFeed.appendChild(warning);
+  cameraPlaceholder.style.display = 'none';
+
+  // Pause battle
+  clearTimeout(actionTimer);
+  clearInterval(countdownTimer);
+  clearTimeout(startTurnTimer);
+  updateBanner('Camera lost! Press Restart', 'show');
+  addLog('Camera disconnected!', 'damage');
 }
 
 async function predict() {
@@ -496,9 +528,26 @@ async function predict() {
 }
 
 function updateConfidenceBars(predictions) {
+  // Find the top prediction for glow effect
+  let topClass = '';
+  let topProb = 0;
+  predictions.forEach(p => {
+    if (p.probability > topProb) {
+      topProb = p.probability;
+      topClass = p.className;
+    }
+  });
+
   predictions.forEach(p => {
     const bar = document.querySelector(`.conf-fill[data-class="${p.className}"]`);
-    if (bar) bar.style.width = `${Math.round(p.probability * 100)}%`;
+    if (!bar) return;
+    bar.style.width = `${Math.round(p.probability * 100)}%`;
+    // Glow on the top-confidence pose
+    if (p.className === topClass && topProb >= POSE_CONFIG.confidenceThreshold) {
+      bar.classList.add('active');
+    } else {
+      bar.classList.remove('active');
+    }
   });
 }
 
@@ -578,6 +627,67 @@ const POSE_CONFIG = {
   debounceFrames: 6,           // consecutive frames above threshold to confirm entry
   exitFrames: 10,              // consecutive frames below threshold to confirm exit (wider = less flicker)
 };
+
+/* --- Sensitivity slider controls --- */
+const SENS_DEFAULTS = { threshold: 70, debounce: 6, exit: 10 };
+
+function initSensitivityControls() {
+  const thresholdSlider = document.getElementById('sensThreshold');
+  const debounceSlider = document.getElementById('sensDebounce');
+  const exitSlider = document.getElementById('sensExit');
+  const thresholdVal = document.getElementById('sensThresholdVal');
+  const debounceVal = document.getElementById('sensDebounceVal');
+  const exitVal = document.getElementById('sensExitVal');
+  const resetBtn = document.getElementById('resetSensBtn');
+
+  function applySliderValues() {
+    POSE_CONFIG.confidenceThreshold = parseInt(thresholdSlider.value) / 100;
+    thresholdVal.textContent = thresholdSlider.value + '%';
+    POSE_CONFIG.debounceFrames = parseInt(debounceSlider.value);
+    debounceVal.textContent = debounceSlider.value;
+    POSE_CONFIG.exitFrames = parseInt(exitSlider.value);
+    exitVal.textContent = exitSlider.value;
+  }
+
+  if (thresholdSlider) {
+    thresholdSlider.addEventListener('input', applySliderValues);
+  }
+  if (debounceSlider) {
+    debounceSlider.addEventListener('input', applySliderValues);
+  }
+  if (exitSlider) {
+    exitSlider.addEventListener('input', applySliderValues);
+  }
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      thresholdSlider.value = SENS_DEFAULTS.threshold;
+      debounceSlider.value = SENS_DEFAULTS.debounce;
+      exitSlider.value = SENS_DEFAULTS.exit;
+      applySliderValues();
+    });
+  }
+}
+initSensitivityControls();
+
+/* --- Settings modal open/close --- */
+(function initSettingsModal() {
+  const overlay = document.getElementById('settingsOverlay');
+  const openBtn = document.getElementById('settingsBtn');
+  const closeBtn = document.getElementById('settingsClose');
+
+  if (openBtn && overlay) {
+    openBtn.addEventListener('click', () => overlay.classList.add('show'));
+  }
+  if (closeBtn && overlay) {
+    closeBtn.addEventListener('click', () => overlay.classList.remove('show'));
+  }
+  // Click backdrop to close
+  if (overlay) {
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.remove('show');
+    });
+  }
+})();
 
 const ACTION_POSES = ['Squat', 'Sage', 'Jump'];
 
@@ -690,7 +800,10 @@ function handlePoseEvents(events) {
     }
     // Fix #1: Lock action on pose_enter during ACTION_WINDOW (moved from UI code)
     if (ev.type === 'pose_enter' && gamePhase === 'ACTION_WINDOW' && ACTION_POSES.includes(ev.pose)) {
-      tryLockAction(ev.pose);
+      // Edge case: tie-breaking — if multiple poses enter same frame, pick highest confidence
+      if (!actionLocked) {
+        tryLockAction(ev.pose);
+      }
     }
   });
 
@@ -703,6 +816,19 @@ function startCountdown() {
   let count = 3;
   updateBanner(`${count}..`, 'countdown');
   addLog('Countdown started!', 'info');
+
+  // Edge case: player already doing an action pose when countdown starts
+  // Pre-lock it so action window picks it up immediately
+  if (poseEngine) {
+    ACTION_POSES.forEach(pose => {
+      const s = poseEngine.tracker[pose];
+      if (s && s.confirmedActive && !actionLocked) {
+        if (pose === 'Jump' && player.ult < 67) return;
+        tryLockAction(pose);
+      }
+    });
+  }
+
   countdownTimer = setInterval(() => {
     count--;
     if (count > 0) {
@@ -741,8 +867,6 @@ function startActionWindow() {
     resolveAction();
   }, ACTION_WINDOW_MS);
 }
-
-
 
 /* ---------------------------------------------------------
    ACTION LOCK — locks the first detected action type
@@ -808,8 +932,6 @@ function addLog(message, type = 'info') {
     battleLogEl.removeChild(battleLogEl.lastChild);
   }
 }
-
-
 
 /** Apply passive +2 ult at start of each turn */
 function applyPassiveUlt() {
@@ -886,6 +1008,9 @@ function startTurn() {
   updateHpUI('player');
   updateHpUI('boss');
   updateUltUI();
+  updateTurnCounter();
+  updateDangerIndicator();
+  updateDebuffBadge();
 
   // Boss attacks first
   gamePhase = 'BOSS_TURN';
@@ -969,11 +1094,59 @@ function showAttackOverlay(targetWho, overlaySrc) {
   setTimeout(() => img.remove(), 650);
 }
 
+/** Update turn counter badge */
+function updateTurnCounter() {
+  const el = document.getElementById('turnCounter');
+  if (el) el.textContent = `TURN ${turnNumber}`;
+}
+
+/** Update boss debuff cooldown badge */
+function updateDebuffBadge() {
+  const badge = document.getElementById('debuffBadge');
+  const text = document.getElementById('debuffText');
+  if (!badge || !text) return;
+
+  badge.classList.remove('ready', 'cooldown', 'locked');
+
+  if (turnNumber <= 3) {
+    // Turns 1-3: debuff not available yet
+    badge.classList.add('locked');
+    text.textContent = 'LOCKED';
+  } else if (boss.debuffCooldown > 0) {
+    // On cooldown
+    badge.classList.add('cooldown');
+    text.textContent = `CD: ${boss.debuffCooldown}`;
+  } else {
+    // Ready to use
+    badge.classList.add('ready');
+    text.textContent = 'READY';
+  }
+}
+
+/** Toggle low-HP danger indicator on player HP bar */
+function updateDangerIndicator() {
+  const hpBar = document.querySelector('.hp-bar.hp-player');
+  if (!hpBar) return;
+  if (player.hp <= 25 && player.hp > 0) {
+    hpBar.classList.add('danger');
+  } else {
+    hpBar.classList.remove('danger');
+  }
+}
+
 /** Boss AI — decides and executes an action */
 function executeBossAction() {
+  // Edge case: if boss debuff is active but ult is also ready, ultimate takes priority
+  // (ultimate is more impactful and should not be wasted)
+
   // 1. Auto-trigger ultimate at 67 ult
   if (boss.ult >= boss.maxUlt) {
     boss.ult = 0;
+    // If debuff was queued this turn, cancel it (ult overrides)
+    if (boss.skipPlayerTurn) {
+      boss.skipPlayerTurn = false;
+      addLog('Professor ULT overrides debuff!', 'info');
+    }
     const dmg = applyDamage(player, 30);
     updateBanner(`Professor uses ULTIMATE! -${dmg} DMG`, 'show');
     addLog(`Professor uses ULTIMATE! -${dmg} DMG`, 'damage');
@@ -983,6 +1156,7 @@ function executeBossAction() {
       triggerHitEffect('player');
       showFloatNumber('player', `-${dmg}`, 'dmg');
       updateHpUI('player', true); // Trigger HP bar pulse
+      updateDangerIndicator();
     });
     return;
   }
@@ -998,6 +1172,7 @@ function executeBossAction() {
     bossAnimator.play('debuff', () => {
       audio.play('damaged');
       triggerHitEffect('player');
+      updateDangerIndicator();
     });
     return;
   }
@@ -1016,6 +1191,7 @@ function executeBossAction() {
     showAttackOverlay('player', 'Asset/PROFESSOR/Professor_Attack/frame-008.png');
     showFloatNumber('player', `-${dmg}`, 'dmg');
     updateHpUI('player', true);
+    updateDangerIndicator();
   });
 }
 
@@ -1196,7 +1372,16 @@ function clearActionResult() {
 startBtn.addEventListener('click', startCamera);
 
 restartBtn.addEventListener('click', () => {
+  // Edge case: if cutscene is playing, stop it first
+  if (cutscene && cutscene.playing) {
+    cutscene.finish();
+  }
+
   stopCamera();
+
+  // Remove any camera disconnect warning
+  const warning = document.querySelector('.camera-warning');
+  if (warning) warning.remove();
 
   // Reset game state
   gamePhase = 'IDLE';
@@ -1234,6 +1419,18 @@ restartBtn.addEventListener('click', () => {
   updateHpUI('player');
   updateHpUI('boss');
   updateUltUI();
+
+  // Reset turn counter and danger indicator
+  const turnCounterEl = document.getElementById('turnCounter');
+  if (turnCounterEl) turnCounterEl.textContent = 'TURN 1';
+  const hpBar = document.querySelector('.hp-bar.hp-player');
+  if (hpBar) hpBar.classList.remove('danger');
+  // Reset debuff badge
+  const debuffBadge = document.getElementById('debuffBadge');
+  const debuffText = document.getElementById('debuffText');
+  if (debuffBadge) debuffBadge.classList.remove('ready', 'cooldown', 'locked');
+  if (debuffText) debuffText.textContent = 'LOCKED';
+  if (debuffBadge) debuffBadge.classList.add('locked');
 
   document.getElementById('actionEmpty').hidden = false;
   document.getElementById('actionResult').hidden = true;

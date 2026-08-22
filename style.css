@@ -5,7 +5,6 @@
   --panel: #eceaf0;
   --panel-dark: #1a1a2e;
   --navy: #1c2b4a;
-  --navy-deep: #101a30;
   --violet: #7b2ff7;
   --violet-glow: #c77dff;
   --crimson: #e0363b;
@@ -282,10 +281,8 @@ body {
   align-items: stretch;
   justify-content: space-between;
   padding: 0 40px 60px;
-  z-index: 1;
+  z-index: 3;
 }
-
-
 
 .sprite-wrapper {
   position: relative;
@@ -296,6 +293,7 @@ body {
 
 .sprite-player {
   align-self: flex-end; /* player stays at bottom */
+  margin-bottom: 20px;
 }
 
 .sprite-img {
@@ -317,6 +315,59 @@ body {
 
 .sprite-boss {
   align-self: center; /* vertically center the boss sprite */
+  margin-top: -20px;
+}
+
+/* Debuff cooldown badge */
+.debuff-badge {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  border: 2px solid var(--line);
+  z-index: 3;
+  white-space: nowrap;
+  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+.debuff-badge.ready {
+  background: rgba(46, 204, 113, 0.85);
+  border-color: #27ae60;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+  animation: readyPulse 1.2s ease-in-out infinite;
+}
+
+.debuff-badge.cooldown {
+  background: rgba(13, 12, 20, 0.85);
+  border-color: #666;
+  color: #999;
+}
+
+.debuff-badge.locked {
+  background: rgba(13, 12, 20, 0.85);
+  border-color: #444;
+  color: #555;
+}
+
+@keyframes readyPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
+  50% { box-shadow: 0 0 16px rgba(46, 204, 113, 0.8); }
+}
+
+.debuff-icon {
+  font-size: 10px;
+  font-style: normal;
+}
+
+.debuff-text {
+  letter-spacing: 0.5px;
 }
 
 /* Hit flash effect */
@@ -397,13 +448,12 @@ body {
 /* Boss ult gauge bar */
 .boss-ult-bar {
   position: absolute;
-  top: 14px;
+  top: 50px;
   right: 14px;
   display: flex;
   align-items: center;
   gap: 6px;
   z-index: 2;
-  transform: translateY(36px);
 }
 
 .boss-ult-label {
@@ -415,15 +465,17 @@ body {
 
 .boss-ult-track {
   width: 100px;
-  height: 10px;
+  height: 12px;
   background: var(--line);
-  border: 2px solid var(--paper);
+  border: 3px solid var(--paper);
+  position: relative;
 }
 
 .boss-ult-fill {
   height: 100%;
   background: linear-gradient(180deg, #ffe08a, var(--gold));
   transition: width 0.4s ease;
+  min-width: 0;
 }
 
 .turn-banner {
@@ -488,23 +540,24 @@ body {
   z-index: 2;
 }
 
-.hp-player { left: 14px; }
-.hp-boss { right: 14px; flex-direction: row-reverse; }
+.hp-bar.hp-player { left: 14px; }
+.hp-bar.hp-boss { right: 14px; flex-direction: row-reverse; }
 
 .hp-icon { color: var(--crimson); font-size: 18px; }
 
 .hp-track {
-  width: 160px;
+  width: 180px;
   height: 16px;
   background: var(--line);
-  border: 2px solid var(--paper);
+  border: 3px solid var(--paper);
+  position: relative;
 }
 
 .hp-fill {
   height: 100%;
   background: linear-gradient(180deg, #ff6b6b, var(--crimson));
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 2px; /* visible even at 0 HP */
+  min-width: 2px;
 }
 
 /* HP bar pulse animation on damage */
@@ -553,21 +606,67 @@ body {
 .skill-icons { display: flex; gap: 8px; }
 
 .skill-icon {
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   background: var(--panel-dark);
-  border: 2px solid var(--paper);
-  opacity: 0.45;
+  border: 3px solid var(--paper);
+  opacity: 0.55;
+  overflow: visible;
+  position: relative;
+}
+
+.skill-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
 }
 
 .skill-icon.active {
   opacity: 1;
   background: var(--crimson-dark);
   box-shadow: 0 0 0 3px var(--gold);
+  border-color: var(--gold);
+}
+
+/* Skill icon tooltip */
+.skill-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(13, 12, 20, 0.92);
+  color: var(--paper);
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 8px 12px;
+  border: 2px solid var(--violet-glow);
+  white-space: nowrap;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 20;
+}
+
+.skill-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--violet-glow);
+}
+
+.skill-icon:hover .skill-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .ult-gauge {
@@ -581,13 +680,15 @@ body {
   flex: 1;
   height: 18px;
   background: var(--line);
-  border: 2px solid var(--paper);
+  border: 3px solid var(--paper);
+  position: relative;
 }
 
 .ult-fill {
   height: 100%;
   background: linear-gradient(180deg, #ffe08a, var(--gold));
   transition: width 0.4s ease;
+  min-width: 0;
 }
 
 .ult-text {
@@ -595,7 +696,8 @@ body {
   font-size: 16px;
   color: var(--paper);
   white-space: nowrap;
-  min-width: 62px;
+  text-align: right;
+  min-width: 70px;
 }
 
 /* ---------- sidebar (grouped, single frame, stacked) ---------- */
@@ -695,6 +797,245 @@ body {
 }
 
 .action-combo { font-size: 18px; color: #555; }
+
+/* ---------- settings button ---------- */
+.settings-btn {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 22px;
+  color: var(--paper);
+  background: rgba(255,255,255,0.08);
+  border: 3px solid rgba(255,255,255,0.2);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.settings-btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: var(--violet-glow);
+}
+
+/* ---------- settings modal ---------- */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 12, 20, 0.85);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.settings-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.settings-modal {
+  background: var(--panel);
+  color: var(--ink);
+  border: 4px solid var(--line);
+  box-shadow: 8px 8px 0 var(--line);
+  width: 420px;
+  max-width: 90vw;
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+}
+
+.settings-overlay.show .settings-modal {
+  transform: translateY(0);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 3px solid var(--line);
+}
+
+.settings-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.settings-close {
+  font-size: 20px;
+  color: var(--ink);
+  background: none;
+  border: 2px solid var(--line);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-close:hover {
+  background: #ddd;
+}
+
+.settings-body {
+  padding: 20px 18px;
+}
+
+.settings-section {
+  margin-bottom: 0;
+}
+
+.settings-section-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--ink);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #ccc;
+}
+
+/* ---------- sensitivity controls ---------- */
+.sensitivity-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sens-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+}
+
+.sens-label {
+  width: 100px;
+  flex-shrink: 0;
+  font-family: 'VT323', monospace;
+  font-size: 19px;
+}
+
+.sens-slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #d4d0dc;
+  border: 2px solid var(--line);
+  outline: none;
+  cursor: pointer;
+}
+
+.sens-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--violet);
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+
+.sens-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--violet);
+  border: 2px solid var(--line);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.sens-value {
+  width: 40px;
+  text-align: right;
+  font-family: 'VT323', monospace;
+  font-size: 19px;
+  color: var(--violet);
+  font-weight: bold;
+}
+
+.sens-desc {
+  font-size: 15px;
+  color: #777;
+  margin: -2px 0 8px 110px;
+  font-family: 'VT323', monospace;
+}
+
+.btn-reset-sens {
+  margin-top: 14px;
+  width: 100%;
+  font-size: 11px;
+  background: #888;
+  color: var(--paper);
+}
+
+.btn-reset-sens:hover {
+  background: #666;
+}
+
+/* confidence bar glow when pose active */
+.conf-fill.active {
+  background: var(--gold);
+  box-shadow: 0 0 8px rgba(244, 180, 0, 0.6);
+}
+
+/* low HP danger indicator */
+.hp-bar.danger .hp-track {
+  animation: dangerPulse 0.5s ease-in-out infinite;
+}
+
+.hp-bar.danger .hp-text {
+  color: var(--crimson);
+  text-shadow: 0 0 8px rgba(224, 54, 59, 0.6);
+}
+
+@keyframes dangerPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(224, 54, 59, 0.5); filter: brightness(1); }
+  50% { box-shadow: 0 0 18px rgba(224, 54, 59, 0.9); filter: brightness(1.3); }
+}
+
+/* turn counter badge */
+.turn-counter {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--paper);
+  background: rgba(13, 12, 20, 0.7);
+  border: 2px solid var(--line);
+  padding: 4px 12px;
+  z-index: 4;
+  letter-spacing: 1px;
+}
+
+/* camera disconnect warning */
+.camera-warning {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(224, 54, 59, 0.85);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--paper);
+  text-align: center;
+  z-index: 5;
+  animation: fadeIn 0.3s ease;
+}
 
 /* battle log */
 .battle-log {
