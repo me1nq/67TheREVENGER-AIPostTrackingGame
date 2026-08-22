@@ -238,13 +238,31 @@
 - **Removed debuff badge**: Removed the cooldown badge that appeared under Professor's feet (HTML, CSS, JS)
 - **Professor_Attack animation**: Reduced from 8 to 7 frames (removed frame-008 from animation sequence)
 - **Debuff auto-skip**: When Professor uses debuff, player turn now auto-skips without requiring T-pose — passive +2 ult still granted on next turn start
-- **Damaged sprite reactions**: Added brief `play('damaged')` sprite animations to all hit callbacks:
-  - Boss normal attack → 67man damaged sprite
+- **Damaged sprite reactions**: Added brief `play('damaged')` sprite animations to ULT hit callbacks only (normal attacks use blink/flicker instead):
   - Boss ult → 67man damaged sprite
-  - Boss debuff → 67man damaged sprite
-  - Player squat → Professor damaged sprite
-  - Player jump → Professor damaged sprite
+  - Player jump (ult) → Professor damaged sprite
+  - Boss normal attack → blink/flicker only
+  - Boss debuff → blink/flicker only
+  - Player squat → blink/flicker only
   - Victory/defeat delayed to play after attack animation finishes
+
+### Session 8 — August 22, 2026 (ULT Effects + Animation Fixes)
+- **ULT screen dim overlay**: Added full-screen dark overlay with radial-gradient spotlight that highlights only the casting character during ULT sequences
+  - `showUltOverlay('player')` / `showUltOverlay('boss')` — spotlight on 67man or Professor
+  - `hideUltOverlay()` — fades out after animation completes
+  - Spotlight positioned at 18% left for player, 82% right for boss
+- **Slower ULT animation**: ULT sequences now play at 4 FPS (half speed) instead of 8 FPS
+  - Modified `SpriteAnimator.play()` to accept optional `fps` parameter
+  - Boss ult: `bossAnimator.play('ult', callback, 4)`
+  - Player ult: `playerAnimator.play('ult', callback, 4)`
+- **Slower ULT sound**: ULT sound effects play at 0.6x speed for dramatic effect
+  - Added `rate` parameter to `AudioManager.play()`
+  - `audio.play('bossUlt', 0.6)` / `audio.play('playerUlt', 0.6)`
+- **ULT screen shake**: Added `ultShake` keyframe animation on `.battle-scene` — multi-directional translate offsets that dampen over 0.5s, triggered when ULT overlay appears
+- **Blink/flicker fix**: Moved `blinkFlicker` animation from `.sprite-wrapper` to `.sprite-img` to avoid conflict with `shake` animation (both were setting `animation` on the same element)
+  - `triggerBlinkEffect()` now targets `.sprite-img` instead of `.sprite-wrapper`
+- **Damaged sprite → ULT only**: Damaged animations now only play on ULT hits (normal attacks use blink/flicker only)
+- **Restart cleanup**: Added `hideUltOverlay()` to restart handler
 
 ### What's Left
 - None — all phases complete! 🎉

@@ -38,13 +38,16 @@ class AudioManager {
     });
   }
 
-  /** Play a sound effect (non-blocking) */
-  play(name) {
+  /** Play a sound effect (non-blocking). Optional rate (default 1.0). */
+  play(name, rate) {
     const audio = this.sounds[name];
     if (!audio) return;
     // Clone to allow overlapping sounds
     const clone = audio.cloneNode();
     clone.volume = 0.7;
+    if (rate && rate !== 1) {
+      clone.playbackRate = rate;
+    }
     clone.play().catch(() => {}); // ignore autoplay errors
   }
 
@@ -135,8 +138,8 @@ class SpriteAnimator {
     await Promise.all(actions.map(a => this.preload(a)));
   }
 
-  /** Play an animation. Returns a Promise that resolves when done (if not looping). */
-  play(action, onFinish) {
+  /** Play an animation. Optional fps overrides ANIM_FPS. */
+  play(action, onFinish, fps) {
     // If already playing this action, don't restart
     if (this.isPlaying && this.currentAction === action) return;
 
@@ -159,7 +162,7 @@ class SpriteAnimator {
       return;
     }
 
-    const interval = 1000 / ANIM_FPS;
+    const interval = 1000 / (fps || ANIM_FPS);
     this.timer = setInterval(() => {
       this.frameIndex++;
       if (this.frameIndex >= frames.length) {
@@ -1068,12 +1071,38 @@ function triggerHitEffect(who) {
 function triggerBlinkEffect(who) {
   const wrapper = document.getElementById(who === 'player' ? 'playerSprite' : 'bossSprite');
   if (!wrapper) return;
-  wrapper.classList.remove('blink');
-  void wrapper.offsetWidth; // reflow to restart animation
-  wrapper.classList.add('blink');
-  setTimeout(() => wrapper.classList.remove('blink'), 600);
+  const img = wrapper.querySelector('.sprite-img');
+  if (!img) return;
+  img.classList.remove('blink');
+  void img.offsetWidth; // reflow to restart animation
+  img.classList.add('blink');
+  setTimeout(() => img.classList.remove('blink'), 600);
 }
 
+
+/** Show ULT screen dim overlay with spotlight on casting character */
+function showUltOverlay(who) {
+  const overlay = document.getElementById('ultOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('ult-player', 'ult-boss');
+  overlay.classList.add(who === 'player' ? 'ult-player' : 'ult-boss');
+  overlay.classList.add('show');
+  // Brief screen shake on the battle scene
+  const scene = document.getElementById('battleScene');
+  if (scene) {
+    scene.classList.remove('ult-shake');
+    void scene.offsetWidth;
+    scene.classList.add('ult-shake');
+    setTimeout(() => scene.classList.remove('ult-shake'), 500);
+  }
+}
+
+/** Hide ULT screen dim overlay */
+function hideUltOverlay() {
+  const overlay = document.getElementById('ultOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('show', 'ult-player', 'ult-boss');
+}
 
 /** Update turn counter badge */
 function updateTurnCounter() {
@@ -1109,15 +1138,17 @@ function executeBossAction() {
     const dmg = applyDamage(player, 30);
     updateBanner(`Professor uses ULTIMATE! -${dmg} DMG`, 'show');
     addLog(`Professor uses ULTIMATE! -${dmg} DMG`, 'damage');
-    audio.play('bossUlt');
+    showUltOverlay('boss');
+    audio.play('bossUlt', 0.6);
     bossAnimator.play('ult', () => {
+      hideUltOverlay();
       audio.play('damaged');
       triggerHitEffect('player');
       playerAnimator.play('damaged');
       showFloatNumber('player', `-${dmg}`, 'dmg');
       updateHpUI('player', true); // Trigger HP bar pulse
       updateDangerIndicator();
-    });
+    }, 4);
     return;
   }
 
@@ -1132,7 +1163,7 @@ function executeBossAction() {
     bossAnimator.play('debuff', () => {
       audio.play('damaged');
       triggerHitEffect('player');
-      playerAnimator.play('damaged');
+      triggerBlinkEffect('player');
       updateDangerIndicator();
     });
     return;
@@ -1148,7 +1179,6 @@ function executeBossAction() {
   bossAnimator.play('attack', () => {
     audio.play('damaged');
     triggerHitEffect('player');
-    playerAnimator.play('damaged');
     triggerBlinkEffect('player');
     showFloatNumber('player', `-${dmg}`, 'dmg');
     updateHpUI('player', true);
@@ -1180,7 +1210,6 @@ function resolveAction() {
         playerAnimator.play('attack', () => {
           audio.play('damaged');
           triggerHitEffect('boss');
-          bossAnimator.play('damaged');
           triggerBlinkEffect('boss');
           showFloatNumber('boss', `-${actual}`, 'dmg');
           updateHpUI('boss', true);
@@ -1210,14 +1239,16 @@ function resolveAction() {
         player.ult = 0;
         addLog(`67man uses ULTIMATE! ${result.reps} reps = ${actual} DMG`, 'buff');
         // Play ult animation + hit effects
-        audio.play('playerUlt');
+        showUltOverlay('player');
+        audio.play('playerUlt', 0.6);
         playerAnimator.play('ult', () => {
+          hideUltOverlay();
           audio.play('damaged');
           triggerHitEffect('boss');
           bossAnimator.play('damaged');
           showFloatNumber('boss', `-${actual}`, 'ult');
           updateHpUI('boss', true); // Trigger HP bar pulse
-        });
+        }, 4);
       } else {
         addLog('67man tries Jump but no reps detected!', 'info');
       }
@@ -1400,6 +1431,9 @@ restartBtn.addEventListener('click', () => {
   // Hide game-over overlay if visible
   const overlay = document.getElementById('gameOverOverlay');
   if (overlay) overlay.classList.remove('show');
+
+  // Hide ULT overlay if visible
+  hideUltOverlay();
 });
 
 /* =========================================================

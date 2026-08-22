@@ -352,8 +352,58 @@ body {
   100% { opacity: 1; }
 }
 
-.sprite-wrapper.blink {
+.sprite-img.blink {
   animation: blinkFlicker 0.6s ease-out;
+}
+
+/* ULT screen dim overlay with spotlight */
+.ult-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(circle at 50% 50%, transparent 0%, transparent 25%, rgba(0, 0, 0, 0.85) 60%);
+}
+
+.ult-overlay.show {
+  opacity: 1;
+}
+
+.ult-overlay.ult-player {
+  background: radial-gradient(circle at 18% 65%, transparent 0%, transparent 20%, rgba(0, 0, 0, 0.88) 55%);
+}
+
+.ult-overlay.ult-boss {
+  background: radial-gradient(circle at 82% 55%, transparent 0%, transparent 20%, rgba(0, 0, 0, 0.88) 55%);
+}
+
+@keyframes ultPulse {
+  0%, 100% { background-size: 100% 100%; }
+  50% { background-size: 110% 110%; }
+}
+
+.ult-overlay.show {
+  animation: ultPulse 1.5s ease-in-out infinite;
+}
+
+/* Screen shake when ULT overlay appears */
+@keyframes ultShake {
+  0%, 100% { transform: translate(0); }
+  10% { transform: translate(-6px, 4px); }
+  20% { transform: translate(6px, -4px); }
+  30% { transform: translate(-5px, -3px); }
+  40% { transform: translate(5px, 3px); }
+  50% { transform: translate(-3px, 2px); }
+  60% { transform: translate(3px, -2px); }
+  70% { transform: translate(-2px, -1px); }
+  80% { transform: translate(2px, 1px); }
+  90% { transform: translate(-1px, 0); }
+}
+
+.battle-scene.ult-shake {
+  animation: ultShake 0.5s ease-out;
 }
 
 /* Float up animation for damage/heal numbers */
