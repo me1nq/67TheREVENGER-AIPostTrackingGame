@@ -318,57 +318,7 @@ body {
   margin-top: -20px;
 }
 
-/* Debuff cooldown badge */
-.debuff-badge {
-  position: absolute;
-  bottom: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  font-family: 'Press Start 2P', monospace;
-  font-size: 8px;
-  border: 2px solid var(--line);
-  z-index: 3;
-  white-space: nowrap;
-  transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
-}
 
-.debuff-badge.ready {
-  background: rgba(46, 204, 113, 0.85);
-  border-color: #27ae60;
-  color: #fff;
-  box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-  animation: readyPulse 1.2s ease-in-out infinite;
-}
-
-.debuff-badge.cooldown {
-  background: rgba(13, 12, 20, 0.85);
-  border-color: #666;
-  color: #999;
-}
-
-.debuff-badge.locked {
-  background: rgba(13, 12, 20, 0.85);
-  border-color: #444;
-  color: #555;
-}
-
-@keyframes readyPulse {
-  0%, 100% { box-shadow: 0 0 8px rgba(46, 204, 113, 0.4); }
-  50% { box-shadow: 0 0 16px rgba(46, 204, 113, 0.8); }
-}
-
-.debuff-icon {
-  font-size: 10px;
-  font-style: normal;
-}
-
-.debuff-text {
-  letter-spacing: 0.5px;
-}
 
 /* Hit flash effect */
 .sprite-wrapper.hit-flash .sprite-img {
@@ -404,25 +354,6 @@ body {
 
 .sprite-wrapper.blink {
   animation: blinkFlicker 0.6s ease-out;
-}
-
-/* Attack overlay image (e.g. Professor_Attack frame on top of 67man) */
-.attack-overlay {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 5;
-  pointer-events: none;
-  image-rendering: pixelated;
-  filter: drop-shadow(3px 3px 0 rgba(0,0,0,0.5));
-  animation: overlayFade 0.6s ease-out forwards;
-}
-
-@keyframes overlayFade {
-  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-  60%  { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
 }
 
 /* Float up animation for damage/heal numbers */

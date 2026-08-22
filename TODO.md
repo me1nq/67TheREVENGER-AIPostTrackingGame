@@ -234,5 +234,17 @@
   - Debuff badge z-index: Raised `.scene-art` to `z-index: 3` so badge renders above ult bar
   - Turn counter z-index: Bumped to `4` to stay above raised scene-art
 
+### Session 7 — August 22, 2026 (Refinements)
+- **Removed debuff badge**: Removed the cooldown badge that appeared under Professor's feet (HTML, CSS, JS)
+- **Professor_Attack animation**: Reduced from 8 to 7 frames (removed frame-008 from animation sequence)
+- **Debuff auto-skip**: When Professor uses debuff, player turn now auto-skips without requiring T-pose — passive +2 ult still granted on next turn start
+- **Damaged sprite reactions**: Added brief `play('damaged')` sprite animations to all hit callbacks:
+  - Boss normal attack → 67man damaged sprite
+  - Boss ult → 67man damaged sprite
+  - Boss debuff → 67man damaged sprite
+  - Player squat → Professor damaged sprite
+  - Player jump → Professor damaged sprite
+  - Victory/defeat delayed to play after attack animation finishes
+
 ### What's Left
 - None — all phases complete! 🎉

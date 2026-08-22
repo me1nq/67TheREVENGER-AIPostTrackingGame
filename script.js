@@ -82,7 +82,7 @@ const ANIMATIONS = {
   },
   boss: {
     stand:    { folder: 'Asset/PROFESSOR/', file: 'Professor_Stand.png', frames: 1, loop: false },
-    attack:   { folder: 'Asset/PROFESSOR/Professor_Attack/', frames: 8, loop: false },
+    attack:   { folder: 'Asset/PROFESSOR/Professor_Attack/', frames: 7, loop: false },
     damaged:  { folder: 'Asset/PROFESSOR/Professor_Damaged/', frames: 7, loop: false },
     debuff:   { folder: 'Asset/PROFESSOR/Professor_Debuff/', frames: 6, loop: false },
     ult:      { folder: 'Asset/PROFESSOR/Professor_ULT/', frames: 7, loop: false },
@@ -843,18 +843,6 @@ function startCountdown() {
 }
 
 function startActionWindow() {
-  // If boss debuff is active, skip player's turn
-  if (boss.skipPlayerTurn) {
-    boss.skipPlayerTurn = false;
-    gamePhase = 'RESOLVING';
-    updateBanner('Turn skipped by debuff!', 'show');
-    showActionResult({ action: 'Skipped', reps: 0, holdTime: 0, dmg: 0, heal: 0 });
-    setTimeout(() => {
-      startTurn();
-    }, 2000);
-    return;
-  }
-
   gamePhase = 'ACTION_WINDOW';
   actionWindowStart = performance.now();
   actionLocked = false;
@@ -1010,7 +998,6 @@ function startTurn() {
   updateUltUI();
   updateTurnCounter();
   updateDangerIndicator();
-  updateDebuffBadge();
 
   // Boss attacks first
   gamePhase = 'BOSS_TURN';
@@ -1030,22 +1017,28 @@ function startTurn() {
       addLog('DEFEAT! You have been defeated!', 'damage');
       audio.stopBGM();
       audio.play('lose');
-      playerAnimator.play('damaged');
       showGameOver(false);
+      setTimeout(() => { playerAnimator.play('damaged'); }, 1500);
       return;
     }
 
-    // Fix #3: Show correct message when debuff skips player turn
+    // Auto-skip player turn when debuff is active (no T-pose needed)
     if (boss.skipPlayerTurn) {
-      gamePhase = 'WAIT_READY';
+      boss.skipPlayerTurn = false;
+      gamePhase = 'RESOLVING';
       updateBanner('Turn skipped by debuff!', 'show');
       addLog('Turn skipped by debuff!', 'damage');
-    } else {
-      // Player's turn
-      gamePhase = 'WAIT_READY';
-      updateBanner('Your turn — T-pose Ready!', 'show');
-      addLog('Your turn — T-pose Ready!', 'info');
+      showActionResult({ action: 'Skipped', reps: 0, holdTime: 0, dmg: 0, heal: 0 });
+      setTimeout(() => {
+        startTurn();
+      }, 2000);
+      return;
     }
+
+    // Player's turn
+    gamePhase = 'WAIT_READY';
+    updateBanner('Your turn — T-pose Ready!', 'show');
+    addLog('Your turn — T-pose Ready!', 'info');
   }, 1500); // 1.5s delay for boss action display
 }
 
@@ -1081,18 +1074,6 @@ function triggerBlinkEffect(who) {
   setTimeout(() => wrapper.classList.remove('blink'), 600);
 }
 
-/** Show an attack overlay image on top of a target sprite */
-function showAttackOverlay(targetWho, overlaySrc) {
-  const wrapper = document.getElementById(targetWho === 'player' ? 'playerSprite' : 'bossSprite');
-  if (!wrapper) return;
-  const img = document.createElement('img');
-  img.className = 'attack-overlay';
-  img.src = overlaySrc;
-  img.style.maxHeight = '180px';
-  img.style.width = 'auto';
-  wrapper.appendChild(img);
-  setTimeout(() => img.remove(), 650);
-}
 
 /** Update turn counter badge */
 function updateTurnCounter() {
@@ -1100,28 +1081,6 @@ function updateTurnCounter() {
   if (el) el.textContent = `TURN ${turnNumber}`;
 }
 
-/** Update boss debuff cooldown badge */
-function updateDebuffBadge() {
-  const badge = document.getElementById('debuffBadge');
-  const text = document.getElementById('debuffText');
-  if (!badge || !text) return;
-
-  badge.classList.remove('ready', 'cooldown', 'locked');
-
-  if (turnNumber <= 3) {
-    // Turns 1-3: debuff not available yet
-    badge.classList.add('locked');
-    text.textContent = 'LOCKED';
-  } else if (boss.debuffCooldown > 0) {
-    // On cooldown
-    badge.classList.add('cooldown');
-    text.textContent = `CD: ${boss.debuffCooldown}`;
-  } else {
-    // Ready to use
-    badge.classList.add('ready');
-    text.textContent = 'READY';
-  }
-}
 
 /** Toggle low-HP danger indicator on player HP bar */
 function updateDangerIndicator() {
@@ -1154,6 +1113,7 @@ function executeBossAction() {
     bossAnimator.play('ult', () => {
       audio.play('damaged');
       triggerHitEffect('player');
+      playerAnimator.play('damaged');
       showFloatNumber('player', `-${dmg}`, 'dmg');
       updateHpUI('player', true); // Trigger HP bar pulse
       updateDangerIndicator();
@@ -1172,6 +1132,7 @@ function executeBossAction() {
     bossAnimator.play('debuff', () => {
       audio.play('damaged');
       triggerHitEffect('player');
+      playerAnimator.play('damaged');
       updateDangerIndicator();
     });
     return;
@@ -1187,8 +1148,8 @@ function executeBossAction() {
   bossAnimator.play('attack', () => {
     audio.play('damaged');
     triggerHitEffect('player');
+    playerAnimator.play('damaged');
     triggerBlinkEffect('player');
-    showAttackOverlay('player', 'Asset/PROFESSOR/Professor_Attack/frame-008.png');
     showFloatNumber('player', `-${dmg}`, 'dmg');
     updateHpUI('player', true);
     updateDangerIndicator();
@@ -1219,6 +1180,7 @@ function resolveAction() {
         playerAnimator.play('attack', () => {
           audio.play('damaged');
           triggerHitEffect('boss');
+          bossAnimator.play('damaged');
           triggerBlinkEffect('boss');
           showFloatNumber('boss', `-${actual}`, 'dmg');
           updateHpUI('boss', true);
@@ -1252,6 +1214,7 @@ function resolveAction() {
         playerAnimator.play('ult', () => {
           audio.play('damaged');
           triggerHitEffect('boss');
+          bossAnimator.play('damaged');
           showFloatNumber('boss', `-${actual}`, 'ult');
           updateHpUI('boss', true); // Trigger HP bar pulse
         });
@@ -1425,12 +1388,6 @@ restartBtn.addEventListener('click', () => {
   if (turnCounterEl) turnCounterEl.textContent = 'TURN 1';
   const hpBar = document.querySelector('.hp-bar.hp-player');
   if (hpBar) hpBar.classList.remove('danger');
-  // Reset debuff badge
-  const debuffBadge = document.getElementById('debuffBadge');
-  const debuffText = document.getElementById('debuffText');
-  if (debuffBadge) debuffBadge.classList.remove('ready', 'cooldown', 'locked');
-  if (debuffText) debuffText.textContent = 'LOCKED';
-  if (debuffBadge) debuffBadge.classList.add('locked');
 
   document.getElementById('actionEmpty').hidden = false;
   document.getElementById('actionResult').hidden = true;
