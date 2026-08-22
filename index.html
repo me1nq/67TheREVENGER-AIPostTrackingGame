@@ -164,6 +164,15 @@
 
   </div>
 
+  <!-- Game Over Overlay -->
+  <div class="game-over-overlay" id="gameOverOverlay">
+    <div class="go-content">
+      <div class="go-title">VICTORY!</div>
+      <div class="go-sub">Professor has been defeated!</div>
+      <button id="goRestartBtn" class="btn btn-start" onclick="document.getElementById('restartBtn').click()">⟲ Play Again</button>
+    </div>
+  </div>
+
 <!-- Teachable Machine Pose dependencies -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>

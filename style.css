@@ -467,6 +467,7 @@ body {
   height: 100%;
   background: linear-gradient(180deg, #ff6b6b, var(--crimson));
   transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px; /* visible even at 0 HP */
 }
 
 /* HP bar pulse animation on damage */
@@ -698,6 +699,52 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- game-over overlay ---------- */
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 12, 20, 0.88);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+
+.game-over-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.go-content {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.go-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 48px;
+  letter-spacing: 4px;
+  text-shadow:
+    3px 3px 0 var(--crimson),
+    6px 6px 0 rgba(0,0,0,0.5);
+}
+
+.go-victory .go-title { color: var(--gold); text-shadow: 3px 3px 0 var(--gold-dark), 6px 6px 0 rgba(0,0,0,0.5), 0 0 30px rgba(244,180,0,0.5); }
+.go-defeat .go-title  { color: var(--crimson); text-shadow: 3px 3px 0 var(--crimson-dark), 6px 6px 0 rgba(0,0,0,0.5); }
+
+.go-sub {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  color: var(--violet-glow);
+  letter-spacing: 2px;
 }
 
 /* ---------- responsive ---------- */

@@ -447,6 +447,7 @@ const ACTION_WINDOW_MS = 10000; // 10 seconds
 const COUNTDOWN_MS = 3000;      // 3-second countdown
 let countdownTimer = null;
 let actionTimer = null;
+let startTurnTimer = null;       // timeout for startTurn's boss-action delay
 
 function createPoseEngine() {
   return {
@@ -545,6 +546,10 @@ function handlePoseEvents(events) {
     if (ev.type === 'pose_enter' && ev.pose === 'Ready' && gamePhase === 'WAIT_READY') {
       startCountdown();
     }
+    // Fix #1: Lock action on pose_enter during ACTION_WINDOW (moved from UI code)
+    if (ev.type === 'pose_enter' && gamePhase === 'ACTION_WINDOW' && ACTION_POSES.includes(ev.pose)) {
+      tryLockAction(ev.pose);
+    }
   });
 
   updatePoseDebugUI();
@@ -574,7 +579,7 @@ function startActionWindow() {
   if (boss.skipPlayerTurn) {
     boss.skipPlayerTurn = false;
     gamePhase = 'RESOLVING';
-    turnBanner.textContent = 'Turn skipped by debuff!';
+    updateBanner('Turn skipped by debuff!', 'show');
     showActionResult({ action: 'Skipped', reps: 0, holdTime: 0, dmg: 0, heal: 0 });
     setTimeout(() => {
       startTurn();
@@ -623,7 +628,7 @@ function tryLockAction(pose) {
 const player = {
   hp: 100,
   maxHp: 100,
-  ult: 50,              // starting ult for testing
+  ult: 0,
   maxUlt: 67,
   passiveUlt: 2,        // +2 ult at start of each turn
 };
@@ -662,10 +667,7 @@ function addLog(message, type = 'info') {
   }
 }
 
-/** Clamp a number between min and max */
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
-}
+
 
 /** Apply passive +2 ult at start of each turn */
 function applyPassiveUlt() {
@@ -748,7 +750,8 @@ function startTurn() {
   updateBanner("Boss's turn...", 'show');
   addLog(`Turn ${turnNumber} — Boss's turn`, 'info');
 
-  setTimeout(() => {
+  startTurnTimer = setTimeout(() => {
+    startTurnTimer = null;
     executeBossAction();
     updateHpUI('player');
     updateUltUI();
@@ -761,13 +764,21 @@ function startTurn() {
       audio.stopBGM();
       audio.play('lose');
       playerAnimator.play('damaged');
+      showGameOver(false);
       return;
     }
 
-    // Player's turn
-    gamePhase = 'WAIT_READY';
-    updateBanner('Your turn — T-pose Ready!', 'show');
-    addLog('Your turn — T-pose Ready!', 'info');
+    // Fix #3: Show correct message when debuff skips player turn
+    if (boss.skipPlayerTurn) {
+      gamePhase = 'WAIT_READY';
+      updateBanner('Turn skipped by debuff!', 'show');
+      addLog('Turn skipped by debuff!', 'damage');
+    } else {
+      // Player's turn
+      gamePhase = 'WAIT_READY';
+      updateBanner('Your turn — T-pose Ready!', 'show');
+      addLog('Your turn — T-pose Ready!', 'info');
+    }
   }, 1500); // 1.5s delay for boss action display
 }
 
@@ -819,7 +830,10 @@ function executeBossAction() {
     updateBanner('Professor uses DEBUFF! Your turn skipped!', 'show');
     addLog('Professor uses DEBUFF! Your turn is skipped!', 'damage');
     audio.play('bossDebuff');
-    bossAnimator.play('debuff');
+    bossAnimator.play('debuff', () => {
+      audio.play('damaged');
+      triggerHitEffect('player');
+    });
     return;
   }
 
@@ -920,6 +934,7 @@ function resolveAction() {
     audio.stopBGM();
     audio.play('win');
     bossAnimator.play('damaged');
+    showGameOver(true);
     return;
   }
 
@@ -972,11 +987,6 @@ function updatePoseDebugUI() {
       const secs = Math.ceil(elapsed / 1000);
       actionValue.textContent = `${secs}s left`;
       actionCombo.textContent = 'Do Squat, Sage, or Jump!';
-
-      // Try to lock on any action pose becoming active
-      ACTION_POSES.forEach(pose => {
-        if (poseEngine.tracker[pose].confirmedActive) tryLockAction(pose);
-      });
     }
   }
 }
@@ -1027,7 +1037,9 @@ restartBtn.addEventListener('click', () => {
   poseEngine = null;
   turnNumber = 0;
   clearTimeout(actionTimer);
+  clearTimeout(startTurnTimer);
   clearInterval(countdownTimer);
+  startTurnTimer = null;
 
   // Stop animators
   if (playerAnimator) playerAnimator.stop();
@@ -1043,7 +1055,7 @@ restartBtn.addEventListener('click', () => {
 
   // Reset player/boss stats
   player.hp = player.maxHp;
-  player.ult = 50;        // starting ult for testing
+  player.ult = 0;
   boss.hp = boss.maxHp;
   boss.ult = 0;
   boss.debuffCooldown = 0;
@@ -1062,4 +1074,26 @@ restartBtn.addEventListener('click', () => {
 
   // Clear battle log
   document.getElementById('battleLog').innerHTML = '';
+
+  // Hide game-over overlay if visible
+  const overlay = document.getElementById('gameOverOverlay');
+  if (overlay) overlay.classList.remove('show');
 });
+
+/* =========================================================
+   GAME OVER OVERLAY
+   ========================================================= */
+
+function showGameOver(isVictory) {
+  const overlay = document.getElementById('gameOverOverlay');
+  if (!overlay) return;
+  const title = overlay.querySelector('.go-title');
+  const sub = overlay.querySelector('.go-sub');
+  if (title) title.textContent = isVictory ? 'VICTORY!' : 'DEFEAT!';
+  if (sub) sub.textContent = isVictory
+    ? 'Professor has been defeated!'
+    : 'You have been defeated...';
+  overlay.classList.toggle('go-victory', isVictory);
+  overlay.classList.toggle('go-defeat', !isVictory);
+  overlay.classList.add('show');
+}
