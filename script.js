@@ -187,6 +187,146 @@ class SpriteAnimator {
 let playerAnimator = null;
 let bossAnimator = null;
 
+/* =========================================================
+   PHASE 8 — STORY INTRO CUTSCENE
+   Text-based scenes using existing sprites
+   ========================================================= */
+
+const CUTSCENE_SCENES = [
+  {
+    sprite: 'Asset/67MAN/67man_Stand.png',
+    text: 'You failed the exam...',
+    bg: '#0a0a12',
+    spriteStyle: 'opacity: 0.6; filter: grayscale(0.8) drop-shadow(0 0 10px rgba(0,0,0,0.8));',
+  },
+  {
+    sprite: 'Asset/67MAN/67man_Stand.png',
+    text: 'Desperate, you head to the elevator...',
+    bg: '#0d1117',
+    spriteStyle: '',
+  },
+  {
+    sprite: '',
+    text: '<span class="glow">A mysterious portal appears!</span>',
+    bg: '#0d0520',
+    spriteStyle: 'display: none;',
+    flash: true,
+  },
+  {
+    sprite: 'Asset/PROFESSOR/Professor_Stand.png',
+    text: '<span class="highlight">The Professor blocks your escape!</span>',
+    bg: '#1a0505',
+    spriteStyle: 'max-height: 350px;',
+    slap: true,
+  },
+  {
+    sprite: '',
+    text: '<span class="highlight">PREPARE FOR BATTLE!</span>',
+    bg: '#000',
+    spriteStyle: 'display: none;',
+    flash: true,
+  },
+];
+
+class CutscenePlayer {
+  constructor() {
+    this.overlay = document.getElementById('cutsceneOverlay');
+    this.scene = document.getElementById('cutsceneScene');
+    this.sprite = document.getElementById('cutsceneSprite');
+    this.text = document.getElementById('cutsceneText');
+    this.bg = document.getElementById('cutsceneBg');
+    this.skip = document.getElementById('cutsceneSkip');
+    this.currentScene = 0;
+    this.playing = false;
+    this.sceneTimer = null;
+    this.onFinish = null;
+
+    // Click to skip
+    this.overlay.addEventListener('click', () => this.skipCutscene());
+  }
+
+  /** Start the cutscene. Returns a Promise that resolves when done or skipped. */
+  start(onFinish) {
+    this.onFinish = onFinish || null;
+    this.currentScene = 0;
+    this.playing = true;
+    this.overlay.classList.add('show');
+    this.showScene(0);
+    return new Promise(resolve => { this._resolve = resolve; });
+  }
+
+  showScene(index) {
+    if (!this.playing || index >= CUTSCENE_SCENES.length) {
+      this.finish();
+      return;
+    }
+
+    const scene = CUTSCENE_SCENES[index];
+    this.currentScene = index;
+
+    // Fade out current scene
+    this.scene.classList.remove('active');
+
+    setTimeout(() => {
+      // Update background
+      this.bg.style.background = scene.bg;
+
+      // Flash effect
+      if (scene.flash) {
+        this.bg.classList.remove('flash');
+        void this.bg.offsetWidth;
+        this.bg.classList.add('flash');
+      }
+
+      // Update sprite
+      if (scene.sprite) {
+        this.sprite.src = scene.sprite;
+        this.sprite.style.display = '';
+        this.sprite.style.cssText = scene.spriteStyle || '';
+        this.sprite.classList.toggle('slap', !!scene.slap);
+      } else {
+        this.sprite.style.display = 'none';
+      }
+
+      // Update text
+      this.text.innerHTML = scene.text;
+      this.text.classList.remove('show');
+
+      // Fade in scene
+      setTimeout(() => {
+        this.scene.classList.add('active');
+        this.text.classList.add('show');
+      }, 50);
+
+      // Auto-advance after delay
+      clearTimeout(this.sceneTimer);
+      this.sceneTimer = setTimeout(() => {
+        this.showScene(index + 1);
+      }, 3000);
+    }, 400);
+  }
+
+  skipCutscene() {
+    if (!this.playing) return;
+    this.finish();
+  }
+
+  finish() {
+    this.playing = false;
+    clearTimeout(this.sceneTimer);
+    this.scene.classList.remove('active');
+    this.text.classList.remove('show');
+
+    setTimeout(() => {
+      this.overlay.classList.remove('show');
+      if (this.onFinish) this.onFinish();
+      if (this._resolve) this._resolve();
+    }, 500);
+  }
+}
+
+const cutscene = new CutscenePlayer();
+
 // --- DOM refs -------------------------------------------------
 const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
@@ -270,11 +410,13 @@ async function startCamera() {
       audio.load('bossUlt', 'Asset/Sound/PROFESSOR/Professor_ULT.mp3'),
     ]);
 
-    // Start background music
-    audio.playBGM('bgm');
-
-    // Start the first turn
-    startTurn();
+    // Play story intro cutscene, then start battle
+    audio.stopBGM();
+    audio.play('startgame');
+    cutscene.start(() => {
+      audio.playBGM('bgm');
+      startTurn();
+    });
 
     rafId = window.requestAnimationFrame(loop);
   } catch (err) {
@@ -804,6 +946,29 @@ function triggerHitEffect(who) {
   setTimeout(() => wrapper.classList.remove('hit-flash', 'shake'), 300);
 }
 
+/** Pokémon-style blink/flicker on a sprite (for normal attacks) */
+function triggerBlinkEffect(who) {
+  const wrapper = document.getElementById(who === 'player' ? 'playerSprite' : 'bossSprite');
+  if (!wrapper) return;
+  wrapper.classList.remove('blink');
+  void wrapper.offsetWidth; // reflow to restart animation
+  wrapper.classList.add('blink');
+  setTimeout(() => wrapper.classList.remove('blink'), 600);
+}
+
+/** Show an attack overlay image on top of a target sprite */
+function showAttackOverlay(targetWho, overlaySrc) {
+  const wrapper = document.getElementById(targetWho === 'player' ? 'playerSprite' : 'bossSprite');
+  if (!wrapper) return;
+  const img = document.createElement('img');
+  img.className = 'attack-overlay';
+  img.src = overlaySrc;
+  img.style.maxHeight = '180px';
+  img.style.width = 'auto';
+  wrapper.appendChild(img);
+  setTimeout(() => img.remove(), 650);
+}
+
 /** Boss AI — decides and executes an action */
 function executeBossAction() {
   // 1. Auto-trigger ultimate at 67 ult
@@ -847,8 +1012,10 @@ function executeBossAction() {
   bossAnimator.play('attack', () => {
     audio.play('damaged');
     triggerHitEffect('player');
+    triggerBlinkEffect('player');
+    showAttackOverlay('player', 'Asset/PROFESSOR/Professor_Attack/frame-008.png');
     showFloatNumber('player', `-${dmg}`, 'dmg');
-    updateHpUI('player', true); // Trigger HP bar pulse
+    updateHpUI('player', true);
   });
 }
 
@@ -876,8 +1043,9 @@ function resolveAction() {
         playerAnimator.play('attack', () => {
           audio.play('damaged');
           triggerHitEffect('boss');
+          triggerBlinkEffect('boss');
           showFloatNumber('boss', `-${actual}`, 'dmg');
-          updateHpUI('boss', true); // Trigger HP bar pulse
+          updateHpUI('boss', true);
         });
       } else {
         addLog('67man tries Squat but no reps detected!', 'info');

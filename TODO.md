@@ -67,15 +67,21 @@
 - [x] Hit flash + shake effects
 - [x] Floating damage/heal numbers
 
-## 🔲 Phase 8 — Story Intro Sequence
-- [ ] Exam fail scene → elevator → portal → giant Professor slap → battle start
-- [ ] Character art integration
-- [ ] Cutscene timing
+## ✅ Phase 8 — Story Intro Sequence
+- [x] Text-based cutscene system (`CutscenePlayer` class)
+- [x] 5 scenes: exam fail → elevator → portal → Professor slap → battle start
+- [x] Auto-advance (3s per scene) + click anywhere to skip
+- [x] `Startgame.mp3` plays during intro, BGM resumes after
+- [x] Flash effects for dramatic moments (portal, battle start)
+- [x] Professor slam-in animation (slap effect)
+- [x] Full-screen overlay with fade transitions
 
 ## 🔲 Phase 9 — Win/Lose States & Polish
-- [ ] Victory / Defeat screens
-- [ ] Pose sensitivity tuning
+- [x] Victory / Defeat overlay screen with Play Again button
+- [x] Game-over overlay styled with gold (victory) / crimson (defeat) themes
+- [x] HP bar visible at 0 HP (min-width)
 - [x] Sound effects (completed in Phase 7)
+- [ ] Pose sensitivity tuning
 - [ ] Edge-case handling
 
 ---
@@ -84,7 +90,7 @@
 - **Model URL**: `https://teachablemachine.withgoogle.com/models/USCwL4puN/`
 - **Jumping Jack detection is unstable** — may need to retrain model with more diverse samples
 - Camera set to `object-fit: cover` to fill the camera box
-- No git version control yet — consider committing
+- Git version control active — commits on `main` branch
 
 ## 🎯 Game Stats
 | Stat | Player (Student) | Boss (Professor) |
@@ -144,6 +150,28 @@
   - Added floating damage/heal/ult numbers
   - Victory/defeat trigger damaged animations
 
+### Session 4 — August 22, 2026
+- **Code review**: Identified 6 bugs (fragile action lock, restart race condition, debuff messaging, no game-over screen, invisible HP bar, debuff missing hit effect)
+- **Bug fixes**: All 6 resolved and committed (`967fce6`)
+  - Moved `tryLockAction` from UI code to pose event handler
+  - Added `startTurnTimer` tracking to prevent stale timeouts on restart
+  - Fixed debuff skip message in `startTurn()`
+  - Added game-over overlay (victory/defeat) with Play Again button
+  - Added `min-width: 2px` to HP fill bar
+  - Added hit flash + sound callback to boss debuff animation
+  - Removed duplicate `clamp()` function
+  - Reset player ult from 50 (testing) to 0
+- **Animation updates**: Pokémon-style blink/flicker + attack overlay
+  - Added `triggerBlinkEffect()` for normal attack hits
+  - Added `showAttackOverlay()` to show Professor_Attack frame-008 on 67man during normal attacks
+  - Added `blinkFlicker` CSS keyframes (0.6s opacity flicker)
+  - Added `attack-overlay` CSS for overlay image positioning
+- **Phase 8 completed**: Story intro cutscene
+  - Built `CutscenePlayer` class with 5 scenes
+  - Text-based scenes using existing sprites
+  - Auto-advance + click-to-skip
+  - `Startgame.mp3` as cutscene BGM
+  - Flash effects, slap animation, fade transitions
+
 ### What's Left
-- Phase 8: Story intro sequence
-- Phase 9: Victory/defeat screens, pose tuning, edge-case handling
+- Phase 9: Pose tuning, edge-case handling

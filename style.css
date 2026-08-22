@@ -337,6 +337,43 @@ body {
   animation: shake 0.3s ease-out;
 }
 
+/* Pokémon-style blink/flicker on normal attack hit */
+@keyframes blinkFlicker {
+  0%   { opacity: 1; }
+  10%  { opacity: 0.15; }
+  20%  { opacity: 1; }
+  30%  { opacity: 0.15; }
+  40%  { opacity: 1; }
+  50%  { opacity: 0.15; }
+  60%  { opacity: 1; }
+  70%  { opacity: 0.3; }
+  80%  { opacity: 1; }
+  100% { opacity: 1; }
+}
+
+.sprite-wrapper.blink {
+  animation: blinkFlicker 0.6s ease-out;
+}
+
+/* Attack overlay image (e.g. Professor_Attack frame on top of 67man) */
+.attack-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+  image-rendering: pixelated;
+  filter: drop-shadow(3px 3px 0 rgba(0,0,0,0.5));
+  animation: overlayFade 0.6s ease-out forwards;
+}
+
+@keyframes overlayFade {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  60%  { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+}
+
 /* Float up animation for damage/heal numbers */
 @keyframes floatUp {
   0% { opacity: 1; transform: translateY(0) scale(1); }
@@ -699,6 +736,118 @@ body {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-5px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- cutscene overlay ---------- */
+.cutscene-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  cursor: pointer;
+}
+
+.cutscene-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cutscene-bg {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  z-index: 0;
+}
+
+.cutscene-scene {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.cutscene-scene.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cutscene-sprite {
+  max-height: 260px;
+  width: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 20px rgba(199,125,255,0.4));
+  transition: transform 0.4s ease, filter 0.4s ease;
+}
+
+.cutscene-sprite.slap {
+  animation: slapIn 0.4s ease-out;
+}
+
+@keyframes slapIn {
+  0%   { transform: scale(2.5) rotate(-10deg); opacity: 0; }
+  60%  { transform: scale(1.1) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.cutscene-text {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  color: var(--paper);
+  text-align: center;
+  max-width: 600px;
+  line-height: 1.8;
+  text-shadow: 2px 2px 0 rgba(0,0,0,0.8);
+  opacity: 0;
+  transition: opacity 0.6s ease 0.3s;
+}
+
+.cutscene-text.show {
+  opacity: 1;
+}
+
+.cutscene-text .highlight {
+  color: var(--crimson);
+}
+
+.cutscene-text .glow {
+  color: var(--violet-glow);
+  text-shadow: 0 0 15px rgba(199,125,255,0.7);
+}
+
+.cutscene-skip {
+  position: absolute;
+  bottom: 30px;
+  right: 30px;
+  font-family: 'VT323', monospace;
+  font-size: 18px;
+  color: rgba(255,255,255,0.4);
+  z-index: 2;
+  transition: color 0.2s;
+}
+
+.cutscene-skip:hover {
+  color: rgba(255,255,255,0.8);
+}
+
+/* Flash white effect for dramatic moments */
+@keyframes flashWhite {
+  0%  { background: rgba(255,255,255,0.9); }
+  100% { background: transparent; }
+}
+
+.cutscene-bg.flash {
+  animation: flashWhite 0.3s ease-out;
 }
 
 /* ---------- game-over overlay ---------- */
