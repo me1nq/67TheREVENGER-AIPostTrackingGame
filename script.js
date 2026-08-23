@@ -274,7 +274,6 @@ class CutscenePlayer {
     this.sprite = document.getElementById('cutsceneSprite');
     this.text = document.getElementById('cutsceneText');
     this.bg = document.getElementById('cutsceneBg');
-    this.skip = document.getElementById('cutsceneSkip');
     this.currentScene = 0;
     this.playing = false;
     this.sceneTimer = null;
@@ -378,7 +377,6 @@ const confFills = document.querySelectorAll('.conf-fill');
 // --- TM / webcam state ------------------------------------------
 let model = null;
 let webcam = null;
-let maxPredictions = 0;
 let rafId = null;
 let cameraOn = false;
 
@@ -398,7 +396,6 @@ async function startCamera() {
       const modelURL = MODEL_URL + 'model.json';
       const metadataURL = MODEL_URL + 'metadata.json';
       model = await tmPose.load(modelURL, metadataURL);
-      maxPredictions = model.getTotalClasses();
     }
 
     // 2. Start the webcam.
@@ -752,7 +749,6 @@ function createPoseEngine() {
           reps: 0,
           holdStart: null,
           totalHoldTime: 0,
-          pendingRep: false,
         };
       });
     },
@@ -787,7 +783,6 @@ function createPoseEngine() {
         if (!state.confirmedActive && state.consecutiveAbove >= POSE_CONFIG.debounceFrames) {
           state.confirmedActive = true;
           state.holdStart = timestamp;
-          state.pendingRep = true;
           events.push({ type: 'pose_enter', pose: p.className, timestamp });
 
           // Count a rep on entry (rising edge) for action poses
@@ -803,9 +798,7 @@ function createPoseEngine() {
           if (state.holdStart) {
             state.totalHoldTime += (timestamp - state.holdStart);
             state.holdStart = null;
-          }
-          state.pendingRep = false;
-          events.push({ type: 'pose_exit', pose: p.className, timestamp });
+          }          events.push({ type: 'pose_exit', pose: p.className, timestamp });
         }
       });
 
@@ -1039,6 +1032,8 @@ function updateBanner(text, className = '') {
 
 /** Start a new turn */
 function startTurn() {
+  // Guard: don't start a new turn if the game is already over
+  if (gamePhase === 'IDLE') return;
   turnNumber++;
   applyPassiveUlt();
   updateHpUI('player');
@@ -1065,8 +1060,9 @@ function startTurn() {
       addLog('DEFEAT! You have been defeated!', 'damage');
       audio.stopBGM();
       audio.play('lose');
-      showGameOver(false);
-      setTimeout(() => { playerAnimator.play('damaged'); }, 1500);
+      playerAnimator.play('damaged', () => {
+        showGameOver(false);
+      });
       return;
     }
 
@@ -1234,17 +1230,25 @@ function executeBossAction() {
 
 /** Resolve player action at end of action window */
 function resolveAction() {
+  // Edge case: if game already ended (e.g. boss died mid-ULT callback), bail out
+  if (gamePhase === 'IDLE') return;
+
   gamePhase = 'RESOLVING';
   clearTimeout(actionTimer);
   clearInterval(countdownTimer);
 
-  let result = { action: lockedAction || 'None', reps: 0, holdTime: 0, dmg: 0, heal: 0 };
+  // Capture and clear action lock state
+  const action = lockedAction;
+  actionLocked = false;
+  lockedAction = null;
 
-  if (lockedAction) {
-    result.reps = poseEngine.getReps(lockedAction);
-    result.holdTime = poseEngine.getHoldTime(lockedAction, performance.now());
+  let result = { action: action || 'None', reps: 0, holdTime: 0, dmg: 0, heal: 0 };
 
-    if (lockedAction === 'Squat') {
+  if (action) {
+    result.reps = poseEngine.getReps(action);
+    result.holdTime = poseEngine.getHoldTime(action, performance.now());
+
+    if (action === 'Squat') {
       result.dmg = result.reps * 5;
       if (result.dmg > 0) {
         const actual = applyDamage(boss, result.dmg);
@@ -1263,7 +1267,7 @@ function resolveAction() {
       } else {
         addLog('67man tries Squat but no reps detected!', 'info');
       }
-    } else if (lockedAction === 'Sage') {
+    } else if (action === 'Sage') {
       result.heal = (result.holdTime >= 1000) ? Math.floor(Math.random() * 6) + 15 : 0;
       if (result.heal > 0) {
         result.heal = applyHeal(player, result.heal);
@@ -1277,7 +1281,7 @@ function resolveAction() {
       } else {
         addLog('67man tries Sage but hold too short!', 'info');
       }
-    } else if (lockedAction === 'Jump') {
+    } else if (action === 'Jump') {
       result.dmg = result.reps * 20;
       if (result.dmg > 0) {
         const actual = applyDamage(boss, result.dmg);
@@ -1298,6 +1302,7 @@ function resolveAction() {
           // Check if boss died from this ult (delay game-over to show animation)
           if (boss.hp <= 0) {
             gamePhase = 'IDLE';
+            clearTimeout(startTurnTimer);
             updateBanner('VICTORY!', 'go');
             addLog('VICTORY! Professor has been defeated!', 'heal');
             audio.stopBGM();
@@ -1316,19 +1321,19 @@ function resolveAction() {
   showActionResult(result);
   updateHpUI('boss');
   updateHpUI('player');
-  updateUltUI();
-
-  // Check if boss died from non-Jump action (instant, no ULT animation to wait for)
-  if (boss.hp <= 0) {
-    gamePhase = 'IDLE';
-    updateBanner('VICTORY!', 'go');
-    addLog('VICTORY! Professor has been defeated!', 'heal');
-    audio.stopBGM();
-    audio.play('win');
-    bossAnimator.play('damaged');
-    showGameOver(true);
-    return;
-  }
+  updateUltUI();    // Check if boss died from non-Jump action (instant, no ULT animation to wait for)
+    if (boss.hp <= 0) {
+      gamePhase = 'IDLE';
+      clearTimeout(startTurnTimer);
+      updateBanner('VICTORY!', 'go');
+      addLog('VICTORY! Professor has been defeated!', 'heal');
+      audio.stopBGM();
+      audio.play('win');
+      bossAnimator.play('damaged', () => {
+        showGameOver(true);
+      });
+      return;
+    }
 
   updateBanner('Turn complete!', 'show');
 
@@ -1407,12 +1412,6 @@ function showActionResult(result) {
 
   document.getElementById('actionCombo').textContent =
     result.reps > 0 ? `x${result.reps} reps` : '';
-}
-
-function clearActionResult() {
-  document.getElementById('actionEmpty').hidden = false;
-  document.getElementById('actionResult').hidden = true;
-  document.querySelectorAll('.skill-icon').forEach(el => el.classList.remove('active'));
 }
 
 /* =========================================================
