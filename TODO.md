@@ -283,7 +283,9 @@
   - Sound now starts at animation midpoint (875ms delay) instead of the beginning
   - `playTimed('bossUlt', 875, 875)` / `playTimed('playerUlt', 875, 875)` — fits the sound into the remaining 875ms so it ends exactly when the 1750ms animation finishes
   - Removed old hardcoded `rate: 0.6` — rate is now calculated dynamically per sound file
-- **Spotlight auto-disappear verified**: `hideUltOverlay()` called in animation callback with CSS `transition: opacity 0.4s ease` — spotlight fades out smoothly at animation end
+- **ULT spotlight not disappearing (critical bug)**: `SpriteAnimator.play()` called `this.play('stand')` on completion, which overwrote `this.onFinish` to `null` before the callback check — `hideUltOverlay()` and all other animation callbacks (hit effects, float numbers, damage updates) never fired
+  - Fix: saved callback to local `const cb = this.onFinish` before calling `this.play('stand')`, then invoked `cb()` after
+  - This affected both player and boss ULT sequences — spotlight, hit effects, damaged sprites, and damage numbers were all silently dropped
 
 ### What's Left
 - None — all phases complete! 🎉

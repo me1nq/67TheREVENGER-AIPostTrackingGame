@@ -204,9 +204,11 @@ class SpriteAnimator {
           this.frameIndex = 0;
         } else {
           this.stop();
+          // Save callback before play('stand') overwrites onFinish
+          const cb = this.onFinish;
           // Return to stand after animation completes
           this.play('stand');
-          if (this.onFinish) this.onFinish();
+          if (cb) cb();
           return;
         }
       }
