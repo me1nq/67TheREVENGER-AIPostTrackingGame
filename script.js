@@ -798,7 +798,8 @@ function createPoseEngine() {
           if (state.holdStart) {
             state.totalHoldTime += (timestamp - state.holdStart);
             state.holdStart = null;
-          }          events.push({ type: 'pose_exit', pose: p.className, timestamp });
+          }
+          events.push({ type: 'pose_exit', pose: p.className, timestamp });
         }
       });
 
@@ -1032,8 +1033,6 @@ function updateBanner(text, className = '') {
 
 /** Start a new turn */
 function startTurn() {
-  // Guard: don't start a new turn if the game is already over
-  if (gamePhase === 'IDLE') return;
   turnNumber++;
   applyPassiveUlt();
   updateHpUI('player');
@@ -1240,14 +1239,12 @@ function executeBossAction() {
 
 /** Resolve player action at end of action window */
 function resolveAction() {
-  // Edge case: if game already ended (e.g. boss died mid-ULT callback), bail out
   if (gamePhase === 'IDLE') return;
 
   gamePhase = 'RESOLVING';
   clearTimeout(actionTimer);
   clearInterval(countdownTimer);
 
-  // Capture and clear action lock state
   const action = lockedAction;
   actionLocked = false;
   lockedAction = null;
@@ -1331,25 +1328,27 @@ function resolveAction() {
   showActionResult(result);
   updateHpUI('boss');
   updateHpUI('player');
-  updateUltUI();    // Check if boss died from non-Jump action (instant, no ULT animation to wait for)
-    if (boss.hp <= 0) {
-      gamePhase = 'IDLE';
-      clearTimeout(startTurnTimer);
-      updateBanner('VICTORY!', 'go');
-      addLog('VICTORY! Professor has been defeated!', 'heal');
-      audio.stopBGM();
-      audio.play('win');
-      bossAnimator.play('damaged', () => {
-        showGameOver(true);
-      });
-      return;
-    }
+  updateUltUI();
+
+  // Check if boss died from non-Jump action (instant, no ULT animation to wait for)
+  if (boss.hp <= 0 && action !== 'Jump') {
+    gamePhase = 'IDLE';
+    clearTimeout(startTurnTimer);
+    updateBanner('VICTORY!', 'go');
+    addLog('VICTORY! Professor has been defeated!', 'heal');
+    audio.stopBGM();
+    audio.play('win');
+    bossAnimator.play('damaged', () => {
+      showGameOver(true);
+    });
+    return;
+  }
 
   updateBanner('Turn complete!', 'show');
 
   // Next turn after short delay
   setTimeout(() => {
-    startTurn();
+    if (gamePhase !== 'IDLE') startTurn();
   }, 2500);
 }
 
@@ -1423,6 +1422,8 @@ function showActionResult(result) {
   document.getElementById('actionCombo').textContent =
     result.reps > 0 ? `x${result.reps} reps` : '';
 }
+
+
 
 /* =========================================================
    BUTTONS
