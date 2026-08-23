@@ -1049,7 +1049,13 @@ function startTurn() {
 
   startTurnTimer = setTimeout(() => {
     startTurnTimer = null;
-    executeBossAction();
+
+    try {
+      executeBossAction();
+    } catch (err) {
+      console.error('executeBossAction failed:', err);
+    }
+
     updateHpUI('player');
     updateUltUI();
 
@@ -1060,9 +1066,13 @@ function startTurn() {
       addLog('DEFEAT! You have been defeated!', 'damage');
       audio.stopBGM();
       audio.play('lose');
-      playerAnimator.play('damaged', () => {
+      if (playerAnimator) {
+        playerAnimator.play('damaged', () => {
+          showGameOver(false);
+        });
+      } else {
         showGameOver(false);
-      });
+      }
       return;
     }
 
