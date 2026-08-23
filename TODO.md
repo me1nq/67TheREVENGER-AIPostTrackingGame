@@ -264,5 +264,26 @@
 - **Damaged sprite → ULT only**: Damaged animations now only play on ULT hits (normal attacks use blink/flicker only)
 - **Restart cleanup**: Added `hideUltOverlay()` to restart handler
 
+### Session 9 — August 23, 2026 (Bug Fixes + ULT Polish)
+- **Code review**: Full review of all 3 files, identified 6 bugs and multiple improvement suggestions
+- **Bug fixes** (6 resolved):
+  - **Boss debuff cooldown stuck forever**: Cooldown only decremented in normal attack branch — added decrement to ULT branch and adjusted debuff branch to `debuffMaxCooldown - 1` so it properly cycles
+  - **Pre-locked reps lost on action window start**: `startActionWindow()` called `poseEngine.reset()` which wiped reps accumulated during countdown pre-lock — now saves pre-locked reps before reset and restores them after
+  - **Game-over overlay covers ULT animation**: `showGameOver()` was called immediately on boss death during Jump ULT — moved boss-death check inside the animation callback so game-over appears after the ULT animation finishes
+  - **`COUNTDOWN_MS` unused**: Added countdown tick sound using the existing 1s interval for better feedback
+  - **`actionValue.style.color` persists across turns**: Changed fallback color from hardcoded `#666` to `var(--ink)` design system variable
+  - **AudioManager memory leak**: Added `clone.src = ''` cleanup on `ended` event to release detached audio nodes
+- **AudioManager enhancements**:
+  - Added `durations` map to cache each sound's original duration after `loadedmetadata`
+  - Added `playTimed(name, delayMs, fitDurationMs)` method — delays playback and auto-calculates `playbackRate` so the sound finishes exactly at the target duration
+- **ULT spotlight tightened**: Reduced transparent zone from 20% to 8% and darkness onset from 55% to 35% — much tighter spotlight closer to the character
+  - Player spotlight: `transparent 8%, rgba(0,0,0,0.92) 35%` at 18% left
+  - Boss spotlight: `transparent 8%, rgba(0,0,0,0.92) 35%` at 82% right
+- **ULT sound synced to animation**:
+  - Sound now starts at animation midpoint (875ms delay) instead of the beginning
+  - `playTimed('bossUlt', 875, 875)` / `playTimed('playerUlt', 875, 875)` — fits the sound into the remaining 875ms so it ends exactly when the 1750ms animation finishes
+  - Removed old hardcoded `rate: 0.6` — rate is now calculated dynamically per sound file
+- **Spotlight auto-disappear verified**: `hideUltOverlay()` called in animation callback with CSS `transition: opacity 0.4s ease` — spotlight fades out smoothly at animation end
+
 ### What's Left
 - None — all phases complete! 🎉

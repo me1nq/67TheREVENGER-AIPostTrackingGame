@@ -372,11 +372,11 @@ body {
 }
 
 .ult-overlay.ult-player {
-  background: radial-gradient(circle at 18% 65%, transparent 0%, transparent 20%, rgba(0, 0, 0, 0.88) 55%);
+  background: radial-gradient(circle at 18% 65%, transparent 0%, transparent 8%, rgba(0, 0, 0, 0.92) 35%);
 }
 
 .ult-overlay.ult-boss {
-  background: radial-gradient(circle at 82% 55%, transparent 0%, transparent 20%, rgba(0, 0, 0, 0.88) 55%);
+  background: radial-gradient(circle at 82% 55%, transparent 0%, transparent 8%, rgba(0, 0, 0, 0.92) 35%);
 }
 
 @keyframes ultPulse {

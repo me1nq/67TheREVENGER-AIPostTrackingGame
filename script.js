@@ -22,6 +22,7 @@ const ANIM_FPS = 8; // frames per second for all sprite animations (slower to sy
 class AudioManager {
   constructor() {
     this.sounds = {};
+    this.durations = {}; // stored duration per sound (seconds)
     this.bgm = null;
     this.bgmPlaying = false;
   }
@@ -34,6 +35,10 @@ class AudioManager {
       audio.preload = 'auto';
       audio.addEventListener('canplaythrough', () => resolve(), { once: true });
       audio.addEventListener('error', () => resolve(), { once: true });
+      // Store duration once metadata is available
+      audio.addEventListener('loadedmetadata', () => {
+        this.durations[name] = audio.duration;
+      }, { once: true });
       this.sounds[name] = audio;
     });
   }
@@ -42,13 +47,42 @@ class AudioManager {
   play(name, rate) {
     const audio = this.sounds[name];
     if (!audio) return;
-    // Clone to allow overlapping sounds
+    // Clone to allow overlapping sounds, but limit concurrent clones
     const clone = audio.cloneNode();
     clone.volume = 0.7;
     if (rate && rate !== 1) {
       clone.playbackRate = rate;
     }
+    // Clean up clone after it finishes playing to prevent memory leak
+    clone.addEventListener('ended', () => {
+      clone.src = '';
+    }, { once: true });
     clone.play().catch(() => {}); // ignore autoplay errors
+  }
+
+  /**
+   * Play a sound after a delay, adjusting playbackRate so it ends
+   * exactly when `fitDuration` ms have elapsed from the call.
+   * Falls back to rate=1 if duration is unknown.
+   */
+  playTimed(name, delayMs, fitDurationMs) {
+    const audio = this.sounds[name];
+    if (!audio) return;
+    const originalDuration = this.durations[name];
+    let rate = 1;
+    if (originalDuration && fitDurationMs > 0) {
+      rate = (originalDuration * 1000) / fitDurationMs;
+      rate = Math.max(0.25, Math.min(rate, 4)); // clamp to safe range
+    }
+    setTimeout(() => {
+      const clone = audio.cloneNode();
+      clone.volume = 0.7;
+      clone.playbackRate = rate;
+      clone.addEventListener('ended', () => {
+        clone.src = '';
+      }, { once: true });
+      clone.play().catch(() => {});
+    }, delayMs);
   }
 
   /** Start background music (loops) */
@@ -836,6 +870,7 @@ function startCountdown() {
     count--;
     if (count > 0) {
       updateBanner(`${count}..`, 'countdown');
+      audio.play('damaged'); // tick sound for countdown
     } else {
       clearInterval(countdownTimer);
       updateBanner('GO!', 'go');
@@ -848,11 +883,19 @@ function startCountdown() {
 function startActionWindow() {
   gamePhase = 'ACTION_WINDOW';
   actionWindowStart = performance.now();
+
+  // If action was pre-locked during countdown, preserve its reps then reset cleanly
+  const preLockedAction = actionLocked ? lockedAction : null;
+  const preLockedReps = preLockedAction ? poseEngine.getReps(preLockedAction) : 0;
+
+  poseEngine.reset();
   actionLocked = false;
   lockedAction = null;
 
-  // Reset rep counters for this turn
-  poseEngine.reset();
+  // Restore pre-locked reps so they aren't lost
+  if (preLockedAction && preLockedReps > 0) {
+    poseEngine.tracker[preLockedAction].reps = preLockedReps;
+  }
 
   actionTimer = setTimeout(() => {
     resolveAction();
@@ -1130,6 +1173,7 @@ function executeBossAction() {
   // 1. Auto-trigger ultimate at 67 ult
   if (boss.ult >= boss.maxUlt) {
     boss.ult = 0;
+    boss.debuffCooldown = Math.max(0, boss.debuffCooldown - 1);
     // If debuff was queued this turn, cancel it (ult overrides)
     if (boss.skipPlayerTurn) {
       boss.skipPlayerTurn = false;
@@ -1139,7 +1183,7 @@ function executeBossAction() {
     updateBanner(`Professor uses ULTIMATE! -${dmg} DMG`, 'show');
     addLog(`Professor uses ULTIMATE! -${dmg} DMG`, 'damage');
     showUltOverlay('boss');
-    audio.play('bossUlt', 0.6);
+    audio.playTimed('bossUlt', 875, 875); // start at midpoint, fit into remaining 875ms
     bossAnimator.play('ult', () => {
       hideUltOverlay();
       audio.play('damaged');
@@ -1154,7 +1198,7 @@ function executeBossAction() {
 
   // 2. Tactical Skill (Debuff) — skip player's turn, 3-turn cooldown
   if (boss.debuffCooldown <= 0 && turnNumber > 3) {
-    boss.debuffCooldown = boss.debuffMaxCooldown;
+    boss.debuffCooldown = boss.debuffMaxCooldown - 1; // -1 because it will also tick down at end of next normal turn
     boss.ult = clamp(boss.ult + 15, 0, boss.maxUlt);
     boss.skipPlayerTurn = true;
     updateBanner('Professor uses DEBUFF! Your turn skipped!', 'show');
@@ -1240,7 +1284,7 @@ function resolveAction() {
         addLog(`67man uses ULTIMATE! ${result.reps} reps = ${actual} DMG`, 'buff');
         // Play ult animation + hit effects
         showUltOverlay('player');
-        audio.play('playerUlt', 0.6);
+        audio.playTimed('playerUlt', 875, 875); // start at midpoint, fit into remaining 875ms
         playerAnimator.play('ult', () => {
           hideUltOverlay();
           audio.play('damaged');
@@ -1248,6 +1292,16 @@ function resolveAction() {
           bossAnimator.play('damaged');
           showFloatNumber('boss', `-${actual}`, 'ult');
           updateHpUI('boss', true); // Trigger HP bar pulse
+
+          // Check if boss died from this ult (delay game-over to show animation)
+          if (boss.hp <= 0) {
+            gamePhase = 'IDLE';
+            updateBanner('VICTORY!', 'go');
+            addLog('VICTORY! Professor has been defeated!', 'heal');
+            audio.stopBGM();
+            audio.play('win');
+            showGameOver(true);
+          }
         }, 4);
       } else {
         addLog('67man tries Jump but no reps detected!', 'info');
@@ -1262,9 +1316,7 @@ function resolveAction() {
   updateHpUI('player');
   updateUltUI();
 
-  updateBanner('Turn complete!', 'show');
-
-  // Check if boss is dead
+  // Check if boss died from non-Jump action (instant, no ULT animation to wait for)
   if (boss.hp <= 0) {
     gamePhase = 'IDLE';
     updateBanner('VICTORY!', 'go');
@@ -1275,6 +1327,8 @@ function resolveAction() {
     showGameOver(true);
     return;
   }
+
+  updateBanner('Turn complete!', 'show');
 
   // Next turn after short delay
   setTimeout(() => {
@@ -1346,7 +1400,7 @@ function showActionResult(result) {
     document.getElementById('actionValue').style.color = '#2ecc71';
   } else {
     document.getElementById('actionValue').textContent = 'No action detected';
-    document.getElementById('actionValue').style.color = '#666';
+    document.getElementById('actionValue').style.color = 'var(--ink)';
   }
 
   document.getElementById('actionCombo').textContent =
